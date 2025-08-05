@@ -114,6 +114,19 @@ expect(newState.nodes).toHaveLength(1);
 3. **commit-bot** refactors and commits with task references
 4. Repeat for each subtask within a task
 
+### Enhanced Test Quality Standards (2025-08-05)
+**Pattern**: Comprehensive testing discipline with enforced quality gates
+**Implementation**:
+- **File Size Discipline**: Test files limited to ≤200 LOC for maintainability
+- **Separation of Concerns**: Split happy path, error cases, edge cases into distinct files
+- **Centralized Fixtures**: Shared test data under `tests/fixtures/` with import reuse
+- **Parameterized Testing**: Use `test.each()` for repetitive scenarios and input variations
+- **Smart Assertions**: `toMatchObject()` for partial validation, `toEqual()` for exact matches
+- **Type Validation**: Include `z.infer<>` assertions for every schema test
+- **PRD Traceability**: Link test IDs to specific requirement IDs for coverage verification
+- **Coverage Thresholds**: ≥90% business logic, ≥80% overall, all API endpoints covered
+- **Lint Discipline**: ESLint + Prettier clean, no commented-out code allowed
+
 ## Workflow Patterns
 
 ### Task Master TDD Workflow
@@ -148,6 +161,28 @@ Closes task-X.Y
 - All commits reference task numbers: `feat(task-3): implement core schemas`
 - Task completion commits include comprehensive checklist
 - Memory Bank automatically updated with progress
+
+### Agent Configuration Management Pattern (2025-08-05)
+**Problem**: Need systematic approach to update and maintain AI agent configurations as project requirements evolve
+**Solution**: Dedicated agent-updater sub-agent for configuration management
+**Implementation**:
+
+```bash
+# Agent configuration lifecycle management
+1. Requirements Analysis: Parse user needs and identify affected agents
+2. Current State Analysis: Read existing agent configurations and capabilities
+3. Update Design: Apply Anthropic best practices with project-specific patterns
+4. Comparison & Explanation: Detail changes and reasoning
+5. User Approval & Git Commit: Commit only approved changes locally
+```
+
+**Agent Update Workflow**:
+- **agent-updater** analyzes requirements and proposes configuration changes
+- Maintains agent core identity while expanding capabilities
+- Ensures valid JSON structure and unique identifiers
+- Creates detailed change comparisons with reasoning
+- Commits only approved changes with descriptive messages
+- Preserves existing project patterns and coding standards
 
 ## Error Handling Patterns
 

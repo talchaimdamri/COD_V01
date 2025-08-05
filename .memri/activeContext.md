@@ -113,6 +113,31 @@
 
 **Next Phase**: Begin TDD implementation starting with Task 3 schema definitions
 
+### 2025-08-05: Agent Quality Enhancement Decision
+**Status**: COMPLETED
+**Decision**: Enhance agent capabilities with comprehensive standards and configuration management
+**Context**: Need systematic approach for maintaining agent quality and handling configuration updates
+**Implementation**:
+- **New Agent**: Created agent-updater.md for systematic agent configuration management
+- **Enhanced Agent**: Updated test-runner.md with comprehensive testing standards:
+  • File size limits (≤200 LOC) and separation of concerns (happy/error/edge cases)
+  • Centralized fixtures under tests/fixtures/ with import reuse patterns
+  • Parameterized testing with test.each() for input variations
+  • Smart assertions guidance (toMatchObject vs toEqual usage)
+  • Type checking requirements with z.infer<> validations
+  • PRD traceability linking for complete coverage verification
+  • Enhanced coverage thresholds (≥90% business logic, ≥80% overall)
+  • Lint discipline and commit quality standards
+
+**Impact**:
+- Agent configuration changes now systematically managed with proper approval workflow
+- Test quality standards enforced at architectural level through sub-agent instructions
+- TDD workflow enhanced with comprehensive quality gates and traceability
+- Memory Bank patterns updated to include agent configuration management
+- Development process now includes explicit test file organization and quality requirements
+
+**Next Actions**: Apply enhanced testing standards to upcoming Task 3 schema validation tests
+
 ---
 
 *Active decisions and context are appended chronologically. Completed decisions move to appropriate specialized Memory Bank files.*
