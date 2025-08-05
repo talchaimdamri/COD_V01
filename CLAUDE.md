@@ -167,6 +167,39 @@ COD_V01/
 4. **backend-developer** - Implements API endpoints
 5. **commit-bot** - Commits code, runs tests, updates Memory Bank
 
+## 🚨 CRITICAL: Commit Every Step
+
+**MANDATORY PRACTICE**: Every completed step/subtask/task MUST be committed immediately with proper git messages.
+
+### Why Commit Every Step?
+- **Progress Preservation**: Prevents loss of work if sessions disconnect
+- **Incremental History**: Creates clear development timeline
+- **Rollback Safety**: Easy to revert specific changes
+- **Memory Bank Updates**: commit-bot maintains project knowledge
+- **Collaboration**: Other agents/sessions can see progress
+
+### When to Commit:
+- ✅ After completing each subtask
+- ✅ After completing each task
+- ✅ After fixing critical bugs
+- ✅ After adding significant features
+- ✅ Before major refactoring
+- ✅ At end of development sessions
+
+### Commit Workflow:
+```bash
+# Stage changes
+git add .
+
+# Check what's being committed
+git status
+
+# Commit with task reference
+git commit -m "feat(task-X): complete [description]"
+
+# Or use commit-bot agent for comprehensive commits
+```
+
 ## Task-Based Commit Format
 
 All commits should reference Task Master task numbers for traceability:
