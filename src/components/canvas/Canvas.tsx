@@ -1,13 +1,14 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useState } from 'react'
 import CanvasGrid from './CanvasGrid'
 import { 
   CanvasProps, 
-  CanvasState, 
   CanvasNode, 
   Position, 
   DEFAULT_VIEW_BOX,
   CANVAS_CONFIG 
 } from './types'
+import { useCanvasEventSourcing } from '../../lib/eventSourcing'
+import { CanvasEventUtils } from '../../../schemas/events/canvas'
 
 const Canvas: React.FC<CanvasProps> = ({
   className = '',
@@ -17,26 +18,48 @@ const Canvas: React.FC<CanvasProps> = ({
   onViewChange,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
-  const [canvasState, setCanvasState] = useState<CanvasState>({
-    nodes: [],
-    viewBox: DEFAULT_VIEW_BOX,
-    scale: 1,
-    isPanning: false,
-    selectedNodeId: null,
-    dragState: {
-      isDragging: false,
-      nodeId: null,
-      startPosition: null,
-      currentPosition: null,
-    },
+  
+  // Use event sourcing instead of local state
+  const {
+    canvasState,
+    isLoading,
+    error,
+    canUndo,
+    canRedo,
+    addNode,
+    moveNode,
+    selectElement,
+    panCanvas,
+    zoomCanvas,
+    resetView,
+    undo,
+    redo,
+  } = useCanvasEventSourcing()
+
+  // Local UI state that doesn't need to be in event sourcing
+  const [lastMousePosition, setLastMousePosition] = useState<Position | null>(null)
+  const [localDragState, setLocalDragState] = useState({
+    isDragging: false,
+    nodeId: null as string | null,
+    startPosition: null as Position | null,
+    currentPosition: null as Position | null,
   })
 
-  const [lastMousePosition, setLastMousePosition] = useState<Position | null>(null)
+  // Handle keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        undo()
+      } else if ((event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.key === 'z' && event.shiftKey))) {
+        event.preventDefault()
+        redo()
+      }
+    }
 
-  // Generate unique node ID
-  const createNodeId = useCallback(() => {
-    return `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  }, [])
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo])
 
   // Convert screen coordinates to SVG coordinates
   const screenToSVG = useCallback((screenX: number, screenY: number): Position => {
@@ -53,8 +76,8 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [canvasState.viewBox])
 
-  // Create new document node
-  const createDocumentNode = useCallback((position?: Position) => {
+  // Create new document node using event sourcing
+  const createDocumentNode = useCallback(async (position?: Position) => {
     const nodePosition: Position = position || { 
       x: canvasState.viewBox.x + canvasState.viewBox.width / 2, 
       y: canvasState.viewBox.y + canvasState.viewBox.height / 2 
@@ -65,42 +88,19 @@ const Canvas: React.FC<CanvasProps> = ({
       x: typeof nodePosition.x === 'number' && !isNaN(nodePosition.x) ? nodePosition.x : 400,
       y: typeof nodePosition.y === 'number' && !isNaN(nodePosition.y) ? nodePosition.y : 300,
     }
+
+    const title = `Document ${canvasState.nodes.filter(n => n.type === 'document').length + 1}`
     
-    const newNode: CanvasNode = {
-      id: createNodeId(),
-      type: 'document',
-      position: validPosition,
-      title: `Document ${canvasState.nodes.filter(n => n.type === 'document').length + 1}`,
+    try {
+      await addNode('document', validPosition, title)
+      onNodeCreate?.('document', validPosition)
+    } catch (error) {
+      console.error('Failed to create document node:', error)
     }
+  }, [canvasState.nodes, canvasState.viewBox, addNode, onNodeCreate])
 
-    console.log('Creating document node:', newNode) // Debug log
-
-    setCanvasState(prev => ({
-      ...prev,
-      nodes: [...prev.nodes, newNode],
-    }))
-
-    // Trigger event for event sourcing
-    onNodeCreate?.('document', validPosition)
-    
-    // Send API event (placeholder for event sourcing integration)
-    if (typeof window !== 'undefined') {
-      // This will be implemented with actual event sourcing
-      console.log('ADD_NODE event', { 
-        type: 'ADD_NODE', 
-        payload: { 
-          nodeId: newNode.id,
-          nodeType: 'document', 
-          position: validPosition 
-        } 
-      })
-    }
-
-    return newNode
-  }, [canvasState.nodes, canvasState.viewBox, createNodeId, onNodeCreate])
-
-  // Create new agent node
-  const createAgentNode = useCallback((position?: Position) => {
+  // Create new agent node using event sourcing
+  const createAgentNode = useCallback(async (position?: Position) => {
     const nodePosition: Position = position || { 
       x: canvasState.viewBox.x + canvasState.viewBox.width / 2, 
       y: canvasState.viewBox.y + canvasState.viewBox.height / 2 
@@ -112,24 +112,15 @@ const Canvas: React.FC<CanvasProps> = ({
       y: typeof nodePosition.y === 'number' && !isNaN(nodePosition.y) ? nodePosition.y : 300,
     }
     
-    const newNode: CanvasNode = {
-      id: createNodeId(),
-      type: 'agent',
-      position: validPosition,
-      title: `Agent ${canvasState.nodes.filter(n => n.type === 'agent').length + 1}`,
-    }
-
-    console.log('Creating agent node:', newNode) // Debug log
-
-    setCanvasState(prev => ({
-      ...prev,
-      nodes: [...prev.nodes, newNode],
-    }))
-
-    onNodeCreate?.('agent', validPosition)
+    const title = `Agent ${canvasState.nodes.filter(n => n.type === 'agent').length + 1}`
     
-    return newNode
-  }, [canvasState.nodes, canvasState.viewBox, createNodeId, onNodeCreate])
+    try {
+      await addNode('agent', validPosition, title)
+      onNodeCreate?.('agent', validPosition)
+    } catch (error) {
+      console.error('Failed to create agent node:', error)
+    }
+  }, [canvasState.nodes, canvasState.viewBox, addNode, onNodeCreate])
 
   // Handle mouse down events
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -215,129 +206,155 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [canvasState.dragState, canvasState.isPanning, canvasState.viewBox, canvasState.scale, lastMousePosition, screenToSVG, onViewChange])
 
   // Handle mouse up events
-  const handleMouseUp = useCallback((_event: React.MouseEvent) => {
-    if (canvasState.dragState.isDragging && canvasState.dragState.nodeId) {
+  const handleMouseUp = useCallback(async (_event: React.MouseEvent) => {
+    if (localDragState.isDragging && localDragState.nodeId) {
       // Complete node drag
-      const nodeId = canvasState.dragState.nodeId
-      const finalPosition = canvasState.dragState.currentPosition || canvasState.dragState.startPosition
+      const nodeId = localDragState.nodeId
+      const startPosition = localDragState.startPosition
+      const finalPosition = localDragState.currentPosition || startPosition
       
-      if (finalPosition) {
-        onNodeMove?.(nodeId, finalPosition)
-        
-        // Send MOVE_NODE event (placeholder for event sourcing)
-        console.log('MOVE_NODE event', {
-          type: 'MOVE_NODE',
-          payload: { nodeId, position: finalPosition }
-        })
+      if (finalPosition && startPosition) {
+        try {
+          await moveNode(nodeId, startPosition, finalPosition)
+          onNodeMove?.(nodeId, finalPosition)
+        } catch (error) {
+          console.error('Failed to move node:', error)
+        }
       }
       
-      setCanvasState(prev => ({
-        ...prev,
-        dragState: {
-          isDragging: false,
-          nodeId: null,
-          startPosition: null,
-          currentPosition: null,
-        },
-        nodes: prev.nodes.map(node => ({ ...node, dragging: false })),
-      }))
+      setLocalDragState({
+        isDragging: false,
+        nodeId: null,
+        startPosition: null,
+        currentPosition: null,
+      })
     } else {
       // Complete canvas pan
-      setCanvasState(prev => ({ ...prev, isPanning: false }))
       setLastMousePosition(null)
     }
-  }, [canvasState.dragState, onNodeMove])
+  }, [localDragState, onNodeMove, moveNode])
 
   // Handle wheel events for zoom
-  const handleWheel = useCallback((event: React.WheelEvent) => {
+  const handleWheel = useCallback(async (event: React.WheelEvent) => {
     event.preventDefault()
     
     const zoomDelta = -event.deltaY * 0.001
-    const newScale = Math.max(
-      CANVAS_CONFIG.MIN_SCALE, 
-      Math.min(CANVAS_CONFIG.MAX_SCALE, canvasState.scale * (1 + zoomDelta))
-    )
+    const newScale = CanvasEventUtils.clampZoom(canvasState.scale * (1 + zoomDelta))
     
     if (newScale !== canvasState.scale) {
       const mousePos = screenToSVG(event.clientX, event.clientY)
       const scaleFactor = newScale / canvasState.scale
       
-      const newViewBox = {
-        x: mousePos.x - (mousePos.x - canvasState.viewBox.x) * scaleFactor,
-        y: mousePos.y - (mousePos.y - canvasState.viewBox.y) * scaleFactor,
-        width: canvasState.viewBox.width * scaleFactor,
-        height: canvasState.viewBox.height * scaleFactor,
+      const fromViewBox = canvasState.viewBox
+      const toViewBox = CanvasEventUtils.createViewBox(
+        mousePos.x - (mousePos.x - canvasState.viewBox.x) * scaleFactor,
+        mousePos.y - (mousePos.y - canvasState.viewBox.y) * scaleFactor,
+        canvasState.viewBox.width * scaleFactor,
+        canvasState.viewBox.height * scaleFactor
+      )
+      
+      try {
+        await zoomCanvas(canvasState.scale, newScale, fromViewBox, toViewBox, mousePos)
+        onViewChange?.(toViewBox, newScale)
+      } catch (error) {
+        console.error('Failed to zoom canvas:', error)
       }
-      
-      setCanvasState(prev => ({
-        ...prev,
-        viewBox: newViewBox,
-        scale: newScale,
-      }))
-      
-      onViewChange?.(newViewBox, newScale)
     }
-  }, [canvasState.scale, canvasState.viewBox, screenToSVG, onViewChange])
+  }, [canvasState.scale, canvasState.viewBox, screenToSVG, onViewChange, zoomCanvas])
 
   // Handle keyboard shortcuts
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    switch (event.key) {
-      case 'ArrowRight':
-        event.preventDefault()
-        setCanvasState(prev => ({
-          ...prev,
-          viewBox: { ...prev.viewBox, x: prev.viewBox.x + CANVAS_CONFIG.PAN_STEP },
-        }))
-        break
-      case 'ArrowLeft':
-        event.preventDefault()
-        setCanvasState(prev => ({
-          ...prev,
-          viewBox: { ...prev.viewBox, x: prev.viewBox.x - CANVAS_CONFIG.PAN_STEP },
-        }))
-        break
-      case 'ArrowDown':
-        event.preventDefault()
-        setCanvasState(prev => ({
-          ...prev,
-          viewBox: { ...prev.viewBox, y: prev.viewBox.y + CANVAS_CONFIG.PAN_STEP },
-        }))
-        break
-      case 'ArrowUp':
-        event.preventDefault()
-        setCanvasState(prev => ({
-          ...prev,
-          viewBox: { ...prev.viewBox, y: prev.viewBox.y - CANVAS_CONFIG.PAN_STEP },
-        }))
-        break
-      case 'r':
-      case 'R':
-        if (!event.ctrlKey && !event.metaKey) {
+  const handleKeyDown = useCallback(async (event: React.KeyboardEvent) => {
+    try {
+      switch (event.key) {
+        case 'ArrowRight':
           event.preventDefault()
-          setCanvasState(prev => ({
-            ...prev,
-            viewBox: DEFAULT_VIEW_BOX,
-            scale: 1,
-          }))
-        }
-        break
-      case '=':
-      case '+':
-        event.preventDefault()
-        const zoomInScale = Math.min(CANVAS_CONFIG.MAX_SCALE, canvasState.scale * (1 + CANVAS_CONFIG.ZOOM_STEP))
-        setCanvasState(prev => ({ ...prev, scale: zoomInScale }))
-        break
-      case '-':
-        event.preventDefault()
-        const zoomOutScale = Math.max(CANVAS_CONFIG.MIN_SCALE, canvasState.scale * (1 - CANVAS_CONFIG.ZOOM_STEP))
-        setCanvasState(prev => ({ ...prev, scale: zoomOutScale }))
-        break
+          const rightViewBox = CanvasEventUtils.createViewBox(
+            canvasState.viewBox.x + CANVAS_CONFIG.PAN_STEP,
+            canvasState.viewBox.y,
+            canvasState.viewBox.width,
+            canvasState.viewBox.height
+          )
+          await panCanvas(canvasState.viewBox, rightViewBox, -CANVAS_CONFIG.PAN_STEP, 0)
+          break
+        case 'ArrowLeft':
+          event.preventDefault()
+          const leftViewBox = CanvasEventUtils.createViewBox(
+            canvasState.viewBox.x - CANVAS_CONFIG.PAN_STEP,
+            canvasState.viewBox.y,
+            canvasState.viewBox.width,
+            canvasState.viewBox.height
+          )
+          await panCanvas(canvasState.viewBox, leftViewBox, CANVAS_CONFIG.PAN_STEP, 0)
+          break
+        case 'ArrowDown':
+          event.preventDefault()
+          const downViewBox = CanvasEventUtils.createViewBox(
+            canvasState.viewBox.x,
+            canvasState.viewBox.y + CANVAS_CONFIG.PAN_STEP,
+            canvasState.viewBox.width,
+            canvasState.viewBox.height
+          )
+          await panCanvas(canvasState.viewBox, downViewBox, 0, -CANVAS_CONFIG.PAN_STEP)
+          break
+        case 'ArrowUp':
+          event.preventDefault()
+          const upViewBox = CanvasEventUtils.createViewBox(
+            canvasState.viewBox.x,
+            canvasState.viewBox.y - CANVAS_CONFIG.PAN_STEP,
+            canvasState.viewBox.width,
+            canvasState.viewBox.height
+          )
+          await panCanvas(canvasState.viewBox, upViewBox, 0, CANVAS_CONFIG.PAN_STEP)
+          break
+        case 'r':
+        case 'R':
+          if (!event.ctrlKey && !event.metaKey) {
+            event.preventDefault()
+            await resetView(canvasState.viewBox, canvasState.scale, 'keyboard')
+          }
+          break
+        case '=':
+        case '+':
+          event.preventDefault()
+          const zoomInScale = CanvasEventUtils.clampZoom(canvasState.scale * (1 + CANVAS_CONFIG.ZOOM_STEP))
+          const centerPos = {
+            x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
+            y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+          }
+          const scaleFactor = zoomInScale / canvasState.scale
+          const zoomInViewBox = CanvasEventUtils.createViewBox(
+            centerPos.x - (centerPos.x - canvasState.viewBox.x) * scaleFactor,
+            centerPos.y - (centerPos.y - canvasState.viewBox.y) * scaleFactor,
+            canvasState.viewBox.width * scaleFactor,
+            canvasState.viewBox.height * scaleFactor
+          )
+          await zoomCanvas(canvasState.scale, zoomInScale, canvasState.viewBox, zoomInViewBox, centerPos)
+          break
+        case '-':
+          event.preventDefault()
+          const zoomOutScale = CanvasEventUtils.clampZoom(canvasState.scale * (1 - CANVAS_CONFIG.ZOOM_STEP))
+          const centerPosOut = {
+            x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
+            y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+          }
+          const scaleFactorOut = zoomOutScale / canvasState.scale
+          const zoomOutViewBox = CanvasEventUtils.createViewBox(
+            centerPosOut.x - (centerPosOut.x - canvasState.viewBox.x) * scaleFactorOut,
+            centerPosOut.y - (centerPosOut.y - canvasState.viewBox.y) * scaleFactorOut,
+            canvasState.viewBox.width * scaleFactorOut,
+            canvasState.viewBox.height * scaleFactorOut
+          )
+          await zoomCanvas(canvasState.scale, zoomOutScale, canvasState.viewBox, zoomOutViewBox, centerPosOut)
+          break
+      }
+    } catch (error) {
+      console.error('Failed to handle keyboard shortcut:', error)
     }
-  }, [canvasState.scale])
+  }, [canvasState.viewBox, canvasState.scale, panCanvas, resetView, zoomCanvas])
 
-  // Expose create node functions to parent components (for toolbar buttons)
+  // Expose create node functions to parent components (for backward compatibility)
   useEffect(() => {
-    // Make functions available globally for toolbar buttons
+    // Make functions available globally for any remaining toolbar buttons
     if (typeof window !== 'undefined') {
       (window as any).canvasCreateDocument = createDocumentNode
       (window as any).canvasCreateAgent = createAgentNode
@@ -346,18 +363,53 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const viewBoxString = `${canvasState.viewBox.x} ${canvasState.viewBox.y} ${canvasState.viewBox.width} ${canvasState.viewBox.height}`
 
+  // Show loading overlay if event sourcing is loading
+  if (isLoading && canvasState.nodes.length === 0) {
+    return (
+      <div 
+        data-testid="canvas" 
+        className={`canvas-container ${className} flex items-center justify-center`}
+        aria-label="Loading canvas..."
+      >
+        <div className="text-muted-foreground">Loading canvas...</div>
+      </div>
+    )
+  }
+
   return (
     <div 
       data-testid="canvas" 
-      className={`canvas-container ${className}`}
+      className={`canvas-container ${className} ${isLoading ? 'opacity-75' : ''}`}
       aria-label="Interactive canvas for document workflow"
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
+      {/* Error display */}
+      {error && (
+        <div className="absolute top-2 left-2 bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm z-10">
+          Error: {error}
+        </div>
+      )}
+      
+      {/* Undo/Redo indicators */}
+      {(canUndo || canRedo) && (
+        <div className="absolute top-2 right-2 flex gap-2 z-10">
+          {canUndo && (
+            <div className="bg-blue-100 border border-blue-400 text-blue-700 px-2 py-1 rounded text-xs">
+              Ctrl+Z to undo
+            </div>
+          )}
+          {canRedo && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-2 py-1 rounded text-xs">
+              Ctrl+Y to redo
+            </div>
+          )}
+        </div>
+      )}
       <svg
         ref={svgRef}
         data-testid="canvas-svg"
-        className={`canvas-svg ${canvasState.isPanning ? 'panning' : ''}`}
+        className={`canvas-svg ${lastMousePosition ? 'panning' : ''} ${isLoading ? 'pointer-events-none' : ''}`}
         width="100%"
         height="100%"
         viewBox={viewBoxString}
@@ -377,39 +429,47 @@ const Canvas: React.FC<CanvasProps> = ({
         />
         
         {/* Nodes */}
-        {canvasState.nodes.map((node) => (
-          <g
-            key={node.id}
-            data-testid="canvas-node"
-            data-node-id={node.id}
-            data-node-type={node.type}
-            className={`canvas-node ${node.dragging ? 'dragging' : ''} ${
-              node.id === canvasState.selectedNodeId ? 'selected' : ''
-            }`}
-            transform={`translate(${node.position.x || 0}, ${node.position.y || 0})`}
-          >
-            <circle
-              cx={0}
-              cy={0}
-              r={CANVAS_CONFIG.NODE_RADIUS}
-              fill={node.type === 'document' ? '#8b5cf6' : '#22c55e'}
-              stroke={node.id === canvasState.selectedNodeId ? '#1e40af' : 'transparent'}
-              strokeWidth={3}
-              className="transition-all duration-200"
-            />
-            <text
-              x={0}
-              y={5}
-              textAnchor="middle"
-              fontSize={12}
-              fill="white"
-              fontWeight="500"
-              pointerEvents="none"
+        {canvasState.nodes.map((node) => {
+          // Handle local drag preview
+          const isDraggedNode = localDragState.isDragging && localDragState.nodeId === node.id
+          const displayPosition = isDraggedNode && localDragState.currentPosition 
+            ? localDragState.currentPosition 
+            : node.position
+            
+          return (
+            <g
+              key={node.id}
+              data-testid="canvas-node"
+              data-node-id={node.id}
+              data-node-type={node.type}
+              className={`canvas-node ${isDraggedNode ? 'dragging' : ''} ${
+                node.id === canvasState.selectedNodeId ? 'selected' : ''
+              }`}
+              transform={`translate(${displayPosition.x || 0}, ${displayPosition.y || 0})`}
             >
-              {node.type === 'document' ? 'Doc' : 'AI'}
-            </text>
-          </g>
-        ))}
+              <circle
+                cx={0}
+                cy={0}
+                r={CANVAS_CONFIG.NODE_RADIUS}
+                fill={node.type === 'document' ? '#8b5cf6' : '#22c55e'}
+                stroke={node.id === canvasState.selectedNodeId ? '#1e40af' : 'transparent'}
+                strokeWidth={3}
+                className="transition-all duration-200"
+              />
+              <text
+                x={0}
+                y={5}
+                textAnchor="middle"
+                fontSize={12}
+                fill="white"
+                fontWeight="500"
+                pointerEvents="none"
+              >
+                {node.type === 'document' ? 'Doc' : 'AI'}
+              </text>
+            </g>
+          )
+        })}
       </svg>
     </div>
   )

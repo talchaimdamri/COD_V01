@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { FileText, Bot, List } from 'lucide-react'
+import { useCanvasEventSourcing } from '../../lib/eventSourcing'
 
 interface SidebarNode {
   id: string
@@ -8,53 +9,57 @@ interface SidebarNode {
 }
 
 const Sidebar: React.FC = () => {
-  const [nodes, setNodes] = useState<SidebarNode[]>([])
-
   const [isCreating, setIsCreating] = useState(false)
+  
+  // Use event sourcing to get canvas state and actions
+  const { canvasState, addNode, resetView, zoomCanvas, canUndo, canRedo, undo, redo } = useCanvasEventSourcing()
+  
+  // Derive nodes from canvas state
+  const nodes: SidebarNode[] = canvasState.nodes.map(node => ({
+    id: node.id,
+    type: node.type,
+    title: node.title,
+  }))
 
-  const handleCreateDocument = async () => {
+  const handleCreateDocument = useCallback(async () => {
     if (isCreating) return // Prevent multiple rapid clicks
     setIsCreating(true)
     
     try {
-      // Call canvas create document function if available
-      if (typeof window !== 'undefined' && (window as any).canvasCreateDocument) {
-        const newNode = (window as any).canvasCreateDocument()
-        console.log('Sidebar: Document created', newNode) // Debug log
-        if (newNode && newNode.id) {
-          setNodes(prev => [...prev, {
-            id: newNode.id,
-            type: 'document',
-            title: newNode.title,
-          }])
-        }
+      // Create document node at center of current view
+      const position = {
+        x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
+        y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
       }
+      
+      const title = `Document ${canvasState.nodes.filter(n => n.type === 'document').length + 1}`
+      await addNode('document', position, title)
+    } catch (error) {
+      console.error('Failed to create document:', error)
     } finally {
       setTimeout(() => setIsCreating(false), 500) // Prevent rapid clicks
     }
-  }
+  }, [isCreating, canvasState, addNode])
 
-  const handleCreateAgent = async () => {
+  const handleCreateAgent = useCallback(async () => {
     if (isCreating) return // Prevent multiple rapid clicks
     setIsCreating(true)
     
     try {
-      // Call canvas create agent function if available
-      if (typeof window !== 'undefined' && (window as any).canvasCreateAgent) {
-        const newNode = (window as any).canvasCreateAgent()
-        console.log('Sidebar: Agent created', newNode) // Debug log
-        if (newNode && newNode.id) {
-          setNodes(prev => [...prev, {
-            id: newNode.id,
-            type: 'agent',
-            title: newNode.title,
-          }])
-        }
+      // Create agent node at center of current view, offset slightly from documents
+      const position = {
+        x: canvasState.viewBox.x + canvasState.viewBox.width / 2 + 50,
+        y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
       }
+      
+      const title = `Agent ${canvasState.nodes.filter(n => n.type === 'agent').length + 1}`
+      await addNode('agent', position, title)
+    } catch (error) {
+      console.error('Failed to create agent:', error)
     } finally {
       setTimeout(() => setIsCreating(false), 500) // Prevent rapid clicks
     }
-  }
+  }, [isCreating, canvasState, addNode])
 
   return (
     <aside 
@@ -103,7 +108,9 @@ const Sidebar: React.FC = () => {
         <div className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <List size={16} className="text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Nodes</span>
+            <span className="text-sm font-medium text-foreground">
+              Nodes ({nodes.length})
+            </span>
           </div>
           
           <div data-testid="sidebar-node-list" className="space-y-2">
@@ -116,7 +123,11 @@ const Sidebar: React.FC = () => {
                 <div
                   key={node.id}
                   data-node-type={node.type}
-                  className="flex items-center gap-2 p-2 rounded border border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                  className={`flex items-center gap-2 p-2 rounded border transition-colors cursor-pointer ${
+                    canvasState.selectedNodeId === node.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-accent/50'
+                  }`}
                 >
                   {node.type === 'document' ? (
                     <FileText size={14} className="text-primary" />
@@ -129,6 +140,9 @@ const Sidebar: React.FC = () => {
                   >
                     {node.title}
                   </span>
+                  {canvasState.selectedNodeId === node.id && (
+                    <div className="w-2 h-2 bg-primary rounded-full" />
+                  )}
                 </div>
               ))
             )}
@@ -138,15 +152,46 @@ const Sidebar: React.FC = () => {
 
       {/* Footer */}
       <div className="p-4 border-t border-border">
+        {/* Undo/Redo buttons */}
+        <div className="flex gap-2 mb-2">
+          <button
+            data-testid="undo-button"
+            className={`flex-1 px-3 py-2 text-xs rounded transition-colors ${
+              canUndo 
+                ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            ↶ Undo
+          </button>
+          <button
+            data-testid="redo-button"
+            className={`flex-1 px-3 py-2 text-xs rounded transition-colors ${
+              canRedo 
+                ? 'bg-green-500 text-white hover:bg-green-600' 
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            ↷ Redo
+          </button>
+        </div>
+        
+        {/* View controls */}
         <div className="flex gap-2">
           <button
             data-testid="reset-view-button"
             className="flex-1 px-3 py-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
-            onClick={() => {
-              // Reset canvas view
-              if (typeof window !== 'undefined') {
-                const event = new KeyboardEvent('keydown', { key: 'r' })
-                document.dispatchEvent(event)
+            onClick={async () => {
+              try {
+                await resetView(canvasState.viewBox, canvasState.scale, 'button')
+              } catch (error) {
+                console.error('Failed to reset view:', error)
               }
             }}
           >
@@ -155,9 +200,24 @@ const Sidebar: React.FC = () => {
           <button
             data-testid="zoom-in-button"
             className="px-3 py-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
-            onClick={() => {
-              const event = new KeyboardEvent('keydown', { key: '=' })
-              document.dispatchEvent(event)
+            onClick={async () => {
+              try {
+                const newScale = Math.min(5.0, canvasState.scale * 1.2)
+                const centerPos = {
+                  x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
+                  y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+                }
+                const scaleFactor = newScale / canvasState.scale
+                const newViewBox = {
+                  x: centerPos.x - (centerPos.x - canvasState.viewBox.x) * scaleFactor,
+                  y: centerPos.y - (centerPos.y - canvasState.viewBox.y) * scaleFactor,
+                  width: canvasState.viewBox.width * scaleFactor,
+                  height: canvasState.viewBox.height * scaleFactor,
+                }
+                await zoomCanvas(canvasState.scale, newScale, canvasState.viewBox, newViewBox, centerPos)
+              } catch (error) {
+                console.error('Failed to zoom in:', error)
+              }
             }}
           >
             +
@@ -165,9 +225,24 @@ const Sidebar: React.FC = () => {
           <button
             data-testid="zoom-out-button"
             className="px-3 py-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
-            onClick={() => {
-              const event = new KeyboardEvent('keydown', { key: '-' })
-              document.dispatchEvent(event)
+            onClick={async () => {
+              try {
+                const newScale = Math.max(0.1, canvasState.scale * 0.8)
+                const centerPos = {
+                  x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
+                  y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+                }
+                const scaleFactor = newScale / canvasState.scale
+                const newViewBox = {
+                  x: centerPos.x - (centerPos.x - canvasState.viewBox.x) * scaleFactor,
+                  y: centerPos.y - (centerPos.y - canvasState.viewBox.y) * scaleFactor,
+                  width: canvasState.viewBox.width * scaleFactor,
+                  height: canvasState.viewBox.height * scaleFactor,
+                }
+                await zoomCanvas(canvasState.scale, newScale, canvasState.viewBox, newViewBox, centerPos)
+              } catch (error) {
+                console.error('Failed to zoom out:', error)
+              }
             }}
           >
             -
