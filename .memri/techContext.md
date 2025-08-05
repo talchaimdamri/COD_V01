@@ -178,6 +178,17 @@
 - Performance budgets in CI
 - Lighthouse scoring in pipeline
 
+### 2025-08-05: Sub-Agent Format Modernization
+**Decision**: Updated all 5 sub-agents to new Claude Code agent format
+**Changes**:
+- Removed `tools` field from YAML frontmatter (deprecated)
+- Added `model: sonnet` specification for consistent model usage
+- Enhanced descriptions with concrete examples using `<example>` and `<commentary>` tags
+- Improved agent invocation patterns with clear use-case scenarios
+
+**Impact**: Better agent delegation, clearer usage examples, modern format compatibility
+**Files Updated**: test-runner.md, schema-keeper.md, ui-developer.md, commit-bot.md, backend-developer.md
+
 ---
 
 *Technology decisions are documented chronologically to maintain decision context and rationale.*
