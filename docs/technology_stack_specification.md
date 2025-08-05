@@ -2,7 +2,7 @@
 
 ## 1 Overview
 
-A lightweight, modular stack that prioritises rapid iteration and clear separation of concerns.  The system is optimised for a **single‑process launch** today and can scale horizontally later without refactoring core code.
+A lightweight, modular stack that prioritises rapid iteration and clear separation of concerns. The system is optimised for a **single‑process launch** today and can scale horizontally later without refactoring core code.
 
 | Layer                 | Technology                              | Primary Role                                          |
 | --------------------- | --------------------------------------- | ----------------------------------------------------- |
@@ -25,9 +25,9 @@ A lightweight, modular stack that prioritises rapid iteration and clear separati
 ## 3 Client‑Side State
 
 - **Single source of truth** = immutable \`\` object (nodes, edges, selection).
-- **Event types** (ADD\_NODE, MOVE\_NODE, DELETE\_EDGE, …) appended to local array.
+- **Event types** (ADD_NODE, MOVE_NODE, DELETE_EDGE, …) appended to local array.
 - **Undo / Redo** implemented with `past` / `future` stacks; reverse events are generated on the fly.
-- **Manual snapshots** (`/documents/:id/version`) recorded on explicit *Create Version* action only.
+- **Manual snapshots** (`/documents/:id/version`) recorded on explicit _Create Version_ action only.
 - **In‑process cache** (`Map`) with 60 s TTL for repeated Agent runs; no external cache yet.
 
 ## 4 Back‑End API
@@ -52,9 +52,9 @@ A lightweight, modular stack that prioritises rapid iteration and clear separati
 | **documents**      | Manual snapshots       | `doc_id`, `version`, `based_on`, `content`, `created_ts`  |
 | **agents**         | Agent definitions      | `agent_id`, `config jsonb`, `secrets jsonb`, `created_ts` |
 | **chains**         | High‑level canvas      | `chain_id`, `name`, `is_active`, `created`                |
-| **chain\_nodes**   | Nodes per chain        | `chain_id`, `node_id`, `node_type`, `x`, `y`              |
-| **chain\_edges**   | Edges per chain        | `edge_id`, `chain_id`, `from_id`, `to_id`                 |
-| **files** *(prep)* | Binary assets metadata | `file_id`, `mime`, `bytes`, `url`                         |
+| **chain_nodes**    | Nodes per chain        | `chain_id`, `node_id`, `node_type`, `x`, `y`              |
+| **chain_edges**    | Edges per chain        | `edge_id`, `chain_id`, `from_id`, `to_id`                 |
+| **files** _(prep)_ | Binary assets metadata | `file_id`, `mime`, `bytes`, `url`                         |
 
 - **ORM / Migrations:** **Prisma** generates TS types and handles schema drift.
 - **Indexes:**\
@@ -102,5 +102,4 @@ networks:
 
 ---
 
-*Document ID: tech-stack‑v1   |   Last updated: 2025‑08‑04*
-
+_Document ID: tech-stack‑v1   |   Last updated: 2025‑08‑04_

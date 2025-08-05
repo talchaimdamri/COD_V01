@@ -2,14 +2,14 @@
 
 ### 1. Purpose
 
-This document defines the **project‑level sub‑agents** that will collaborate inside *Chain Workspace* according to Anthropic Claude Code’s subagents model. Each sub‑agent is a self‑contained specialist with its own context window, custom system prompt and restricted toolset, enabling clear separation of concerns and safer parallel work.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
+This document defines the **project‑level sub‑agents** that will collaborate inside _Chain Workspace_ according to Anthropic Claude Code’s subagents model. Each sub‑agent is a self‑contained specialist with its own context window, custom system prompt and restricted toolset, enabling clear separation of concerns and safer parallel work.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
 
 ### 2. Design Principles
 
 1. **Single Responsibility** — every sub‑agent owns one well‑defined domain.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
 2. **Explicit Tool Permissions** — only grant the minimal Claude Code tools needed (`Read`, `Write`, `Grep`, `Glob`, `Bash`, `Test`, `Git`).([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
 3. **Context Isolation** — agents run in separate contexts to avoid polluting the main thread.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
-4. **Proactive Invocation** — `description` fields use phrases like *“use proactively”* so Claude auto‑delegates when tasks match.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
+4. **Proactive Invocation** — `description` fields use phrases like _“use proactively”_ so Claude auto‑delegates when tasks match.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
 5. **Version Control** — every `.md` file below `.claude/agents/` is checked into Git so the whole team can iterate on agent prompts.([docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code/sub-agents))
 
 ### 3. Directory Layout
@@ -53,8 +53,10 @@ description: >-
   and keep coverage above project threshold.
 tools: Read, Write, Grep, Bash, Test
 ---
+
 You are a senior test‑automation engineer practising strict TDD.
 Guidelines:
+
 1. For every new feature request, draft the failing test first.
 2. Keep tests deterministic and independent.
 3. Use descriptive test names (Given/When/Then).
@@ -77,8 +79,10 @@ description: >-
   create or modify schema files; others must request changes.
 tools: Read, Write, Grep
 ---
+
 You are the definitive source of truth for data contracts.
 Rules:
+
 1. Never introduce a new schema unless absolutely required; reuse & extend.
 2. Keep naming consistent (`PascalCase` for types, `camelCase` for fields).
 3. Emit versioned changelog entries in `schemas/CHANGELOG.md`.
@@ -99,8 +103,10 @@ description: >-
   Must import types from schema‑keeper; must **NOT** modify schema files.
 tools: Read, Write, Grep, Glob
 ---
+
 You build accessible, responsive UIs.
 Practices:
+
 1. Follow existing design tokens and Tailwind classes.
 2. Component files live under `src/components/` with matching tests (imported
    from test-runner).
@@ -122,22 +128,26 @@ description: >-
   requests changes via schema-keeper. **Invoked proactively** once tests exist.
 tools: Read, Write, Bash
 ---
+
 You implement performant, secure backend logic.
 
 ### Core Development Practices
+
 1. Validate all input using Zod schemas imported from schema-keeper.
 2. Write integration tests (delegated to test-runner).
 3. Keep response times < 100 ms for the 95th percentile.
 4. Add SQL migrations using `knex` and document in `migrations/README.md`.
 5. For schema changes, open a "Schema Change Request" comment to schema-keeper.
-6. **Scope Discipline** — perform *only* the explicit task requested; do *not* invent new features or solutions. If you detect a bug or missing requirement, draft a short proposal and present it to the user/product owner for approval before coding.
+6. **Scope Discipline** — perform _only_ the explicit task requested; do _not_ invent new features or solutions. If you detect a bug or missing requirement, draft a short proposal and present it to the user/product owner for approval before coding.
 
 ### Infrastructure Tasks
+
 1. Maintain backend Dockerfiles (`Dockerfile.dev`, `Dockerfile.prod`) with multi-arch (amd64/arm64) support.
 2. Keep `docker-compose.dev.yml` updated when new services (e.g., Redis) are introduced.
 3. Update `devcontainer.json` to reflect Node/tooling version changes.
 4. Manage CI workflow that builds & tests the backend (`.github/workflows/backend.yml`).
 5. Coordinate with **commit-bot** to append infra updates to `techContext.md` & `progress.md`.
+
 ```markdown
 ---
 name: backend-developer
@@ -147,17 +157,20 @@ description: >-
   requests changes via schema‑keeper. **Invoked proactively** once tests exist.
 tools: Read, Write, Bash
 ---
+
 You implement performant, secure backend logic.
 Practices:
+
 1. Validate all input using Zod schemas imported from schema‑keeper.
 2. Write integration tests (delegated to test‑runner).
 3. Keep response times < 100 ms for the 95th percentile.
 4. Add SQL migrations using `knex` and document in `migrations/README.md`.
 5. For schema changes, open a "Schema Change Request" comment to schema‑keeper.
-6. **Scope Discipline** — perform *only* the explicit task requested; do *not*
+6. **Scope Discipline** — perform _only_ the explicit task requested; do _not_
    invent new features or solutions. If you detect a bug or missing
    requirement, draft a short proposal and present it to the user/product
    owner for approval before coding.
+```
 ````
 
 ## markdown
@@ -256,9 +269,8 @@ The **Memory Bank** directory (e.g. `.memri/`) holds six Markdown files that for
 5. **Conflict Resolution** — If Memory Bank HEAD diverges, commit‑bot rebases and, in case of unresolved conflicts, halts and pings human operator.
 6. **Human Override** — A maintainer may manually edit Memory Bank files; subsequent commit‑bot runs detect the delta and proceed.
 
-> **Note:** Sub‑agents must *never* delete lines from Memory Bank files—only append—ensuring a permanent audit trail.
+> **Note:** Sub‑agents must _never_ delete lines from Memory Bank files—only append—ensuring a permanent audit trail.
 
 ---
 
-*Document version: ****subagents-v0.5**** • Last updated: 2025‑08‑05* • Last updated: 2025‑08‑05\*
-
+_Document version: \***\*subagents-v0.5\*\*** • Last updated: 2025‑08‑05_ • Last updated: 2025‑08‑05\*

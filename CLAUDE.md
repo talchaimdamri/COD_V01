@@ -1,9 +1,11 @@
 # Chain Workspace Application - Development Guide
 
 ## Project Overview
+
 A lightweight, modular workspace application for creating and managing document processing chains with AI agents. Built with React 18 + Vite frontend, Node.js 20 + Fastify backend, PostgreSQL 16 database, and Docker containerization.
 
 ## Architecture Patterns
+
 - **Event-sourced state**: Immutable event log with undo/redo capabilities
 - **Single-process launch**: Optimized for rapid iteration, horizontally scalable later
 - **TDD workflow**: Test-first development with specialized sub-agents
@@ -11,6 +13,7 @@ A lightweight, modular workspace application for creating and managing document 
 - **Memory Bank**: Long-term knowledge base maintained by commit-bot agent
 
 ## Key Technologies
+
 - **Frontend**: React 18, Vite, Tailwind CSS, SVG rendering
 - **Backend**: Node.js 20, TypeScript, Fastify, Zod validation
 - **Database**: PostgreSQL 16, Prisma ORM
@@ -20,6 +23,7 @@ A lightweight, modular workspace application for creating and managing document 
 ## Development Commands
 
 ### Environment Setup
+
 ```bash
 # Start local development environment
 docker-compose -f docker-compose.dev.yml up -d
@@ -35,6 +39,7 @@ npm run db:seed
 ```
 
 ### Development Workflow
+
 ```bash
 # Start frontend development server
 npm run dev:ui
@@ -50,6 +55,7 @@ npm run build
 ```
 
 ### Testing Commands
+
 ```bash
 # Run unit tests
 npm run test:unit
@@ -71,6 +77,7 @@ npm run test:watch
 ```
 
 ### Database Operations
+
 ```bash
 # Create new migration
 npm run db:migrate:create
@@ -86,6 +93,7 @@ open http://localhost:8080
 ```
 
 ### Code Quality
+
 ```bash
 # Run linter
 npm run lint
@@ -101,6 +109,7 @@ npm run format
 ```
 
 ### Docker Operations
+
 ```bash
 # Build all containers
 docker-compose build
@@ -119,6 +128,7 @@ docker-compose down -v
 ```
 
 ## Project Structure
+
 ```
 COD_V01/
 ├── .claude/agents/          # Sub-agent definitions
@@ -142,6 +152,7 @@ COD_V01/
 ```
 
 ## Key File Patterns
+
 - Components: `src/components/**/*.tsx`
 - API routes: `api/routes/**/*.ts`
 - Schemas: `schemas/**/*.ts`
@@ -149,6 +160,7 @@ COD_V01/
 - Migrations: `migrations/**/*.sql`
 
 ## Sub-Agent Workflow
+
 1. **test-runner** - Creates failing tests first (TDD)
 2. **schema-keeper** - Defines/updates data contracts
 3. **ui-developer** - Implements React components
@@ -156,9 +168,11 @@ COD_V01/
 5. **commit-bot** - Commits code, runs tests, updates Memory Bank
 
 ## Task-Based Commit Format
+
 All commits should reference Task Master task numbers for traceability:
 
 ### Commit Message Format
+
 ```bash
 # Task-specific commits
 feat(task-3): implement core Zod schemas for API validation
@@ -173,11 +187,13 @@ ci(deps): update dependencies for security patches
 ```
 
 ### Task Completion Commits
+
 When completing tasks, use the commit-bot agent with this format:
+
 ```bash
 feat(task-X): complete [task title]
 
-- ✅ [subtask 1 description] 
+- ✅ [subtask 1 description]
 - ✅ [subtask 2 description]
 - ✅ All tests passing (unit/integration/e2e)
 - ✅ Memory Bank updated with progress
@@ -186,13 +202,15 @@ Closes task-X
 ```
 
 ### Sub-Agent Commit Guidelines
+
 - **test-runner**: `test(task-X): add [test type] tests for [feature]`
 - **schema-keeper**: `feat(task-X): define [schema name] with validation rules`
-- **ui-developer**: `feat(task-X): implement [component name] with [key features]`  
+- **ui-developer**: `feat(task-X): implement [component name] with [key features]`
 - **backend-developer**: `feat(task-X): add [endpoint/service] with [functionality]`
 - **commit-bot**: Always includes Memory Bank updates and task references
 
 ## Memory Bank Files
+
 - `projectbrief.md` - High-level project description (read-only)
 - `productContext.md` - Feature requirements and business context
 - `systemPatterns.md` - Architecture patterns and conventions
@@ -201,6 +219,7 @@ Closes task-X
 - `progress.md` - Development progress tracking
 
 ## Quick Start
+
 1. `docker-compose -f docker-compose.dev.yml up -d` - Start database
 2. `npm install` - Install dependencies
 3. `npm run db:migrate` - Set up database schema
@@ -208,6 +227,7 @@ Closes task-X
 5. Open http://localhost:3000 for UI, http://localhost:3001 for API
 
 ## Environment Variables
+
 ```bash
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/chainworkspace
@@ -223,11 +243,13 @@ NODE_ENV=development
 ```
 
 ## Ports
+
 - Frontend (Vite): 3000
 - Backend (Fastify): 3001
 - Database (PostgreSQL): 5432
 - Adminer (DB GUI): 8080
 
 ## Task Master AI Instructions
+
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
 @./.taskmaster/CLAUDE.md

@@ -3,42 +3,50 @@
 ## Architecture Patterns
 
 ### Event Sourcing Pattern
+
 **Problem**: Need complete audit trail and undo/redo functionality
 **Solution**: Store all state changes as immutable events
-**Implementation**: 
+**Implementation**:
+
 - Events stored in append-only log
 - State derived by replaying events
 - Undo/redo implemented with past/future stacks
 
 ```typescript
 interface Event {
-  seq: number;
-  timestamp: Date;
-  actor_id: string;
-  event_type: EventType;
-  payload: unknown;
+  seq: number
+  timestamp: Date
+  actor_id: string
+  event_type: EventType
+  payload: unknown
 }
 ```
 
 ### Command-Query Separation
+
 **Problem**: Mixed read/write operations complicate state management
 **Solution**: Separate command handlers from query handlers
 **Implementation**:
+
 - Commands: `addNode()`, `moveNode()`, `deleteEdge()`
 - Queries: `getNodeById()`, `getChainState()`, `getEventHistory()`
 
 ### Schema-First Development
+
 **Problem**: Data contract inconsistencies between frontend/backend
 **Solution**: Shared Zod schemas as single source of truth
 **Implementation**:
+
 - All data structures defined in `schemas/` package
 - Runtime validation on API boundaries
 - TypeScript types generated from schemas
 
 ### Dependency Injection
+
 **Problem**: Tightly coupled components difficult to test
 **Solution**: Inject dependencies through constructor/props
 **Implementation**:
+
 - Services use constructor injection
 - React components use props drilling or context
 - Mock implementations for testing
@@ -46,22 +54,28 @@ interface Event {
 ## Data Flow Patterns
 
 ### Unidirectional Data Flow
+
 **Pattern**: Data flows down, events flow up
 **Implementation**:
+
 ```
 User Action → Event → Reducer → New State → Re-render
 ```
 
 ### Event Streaming
+
 **Pattern**: Real-time updates through server-sent events
 **Implementation**:
+
 - Client subscribes to `/events?from=seq`
 - Server streams new events as they occur
 - Client applies events to local state
 
 ### Optimistic Updates
+
 **Pattern**: Update UI immediately, reconcile with server
 **Implementation**:
+
 - Apply event locally first
 - Send to server for persistence
 - Rollback if server rejects
@@ -69,16 +83,19 @@ User Action → Event → Reducer → New State → Re-render
 ## UI Patterns
 
 ### Compound Components
+
 **Pattern**: Related components work together
 **Example**: `<Canvas>` + `<Node>` + `<Arrow>`
 **Benefits**: Encapsulation, reusability, consistency
 
 ### Render Props
+
 **Pattern**: Share logic between components
 **Example**: `<DragContainer render={(props) => <Node {...props} />} />`
 **Benefits**: Composition over inheritance
 
 ### Controlled Components
+
 **Pattern**: Parent controls component state
 **Example**: `<DocumentEditor value={content} onChange={setContent} />`
 **Benefits**: Predictable state flow
@@ -86,37 +103,45 @@ User Action → Event → Reducer → New State → Re-render
 ## Testing Patterns
 
 ### Test Pyramid Structure
+
 - **Unit Tests (70%)**: Pure functions, isolated components
-- **Integration Tests (20%)**: API endpoints, database operations  
+- **Integration Tests (20%)**: API endpoints, database operations
 - **E2E Tests (10%)**: Critical user journeys
 
 ### Page Object Model
+
 **Pattern**: Encapsulate page interactions in objects
 **Benefits**: Maintainable E2E tests, reusable actions
 
 ### Arrange-Act-Assert
+
 **Pattern**: Structure tests with clear phases
 **Example**:
+
 ```typescript
 // Arrange
-const initialState = createEmptyGraph();
+const initialState = createEmptyGraph()
 // Act
-const newState = addNode(initialState, nodeData);
+const newState = addNode(initialState, nodeData)
 // Assert
-expect(newState.nodes).toHaveLength(1);
+expect(newState.nodes).toHaveLength(1)
 ```
 
 ### Test-Driven Development (TDD) Cycle
+
 **Pattern**: Red-Green-Refactor cycle with Task Master integration
 **Implementation**:
+
 1. **test-runner** sub-agent creates failing tests for task requirements
 2. **schema-keeper/ui-developer/backend-developer** implement minimal code to pass
 3. **commit-bot** refactors and commits with task references
 4. Repeat for each subtask within a task
 
 ### Enhanced Test Quality Standards (2025-08-05)
+
 **Pattern**: Comprehensive testing discipline with enforced quality gates
 **Implementation**:
+
 - **File Size Discipline**: Test files limited to ≤200 LOC for maintainability
 - **Separation of Concerns**: Split happy path, error cases, edge cases into distinct files
 - **Centralized Fixtures**: Shared test data under `tests/fixtures/` with import reuse
@@ -130,6 +155,7 @@ expect(newState.nodes).toHaveLength(1);
 ## Workflow Patterns
 
 ### Task Master TDD Workflow
+
 **Problem**: Need systematic approach to track development progress with test-first methodology
 **Solution**: Task-based development with automated progress tracking
 **Implementation**:
@@ -152,17 +178,20 @@ Closes task-X.Y
 ```
 
 **Task Structure**:
+
 - Tasks generated from PRD parsing with AI analysis
 - Each task contains 4-9 TDD subtasks
 - Dependencies tracked between tasks
 - Progress visible through `task-master list`
 
 **Commit Format**:
+
 - All commits reference task numbers: `feat(task-3): implement core schemas`
 - Task completion commits include comprehensive checklist
 - Memory Bank automatically updated with progress
 
 ### Agent Configuration Management Pattern (2025-08-05)
+
 **Problem**: Need systematic approach to update and maintain AI agent configurations as project requirements evolve
 **Solution**: Dedicated agent-updater sub-agent for configuration management
 **Implementation**:
@@ -177,6 +206,7 @@ Closes task-X.Y
 ```
 
 **Agent Update Workflow**:
+
 - **agent-updater** analyzes requirements and proposes configuration changes
 - Maintains agent core identity while expanding capabilities
 - Ensures valid JSON structure and unique identifiers
@@ -187,21 +217,26 @@ Closes task-X.Y
 ## Error Handling Patterns
 
 ### Railway-Oriented Programming
+
 **Pattern**: Chain operations with explicit error handling
 **Implementation**: Use Result<T, E> type for error propagation
 
 ### Circuit Breaker
+
 **Pattern**: Fail fast when external service is down
 **Implementation**: Track failure rates, open circuit after threshold
 
 ### Graceful Degradation
+
 **Pattern**: Reduce functionality rather than complete failure
 **Example**: Disable agent execution if AI service unavailable
 
 ## Security Patterns
 
 ### Defense in Depth
+
 **Layers**:
+
 1. Input validation (Zod schemas)
 2. Authentication (JWT tokens)
 3. Authorization (role-based access)
@@ -209,7 +244,9 @@ Closes task-X.Y
 5. CSP headers
 
 ### Principle of Least Privilege
+
 **Implementation**:
+
 - API endpoints require specific permissions
 - Database queries use minimal necessary scope
 - Agent execution runs in sandboxed environment
@@ -217,18 +254,22 @@ Closes task-X.Y
 ## Performance Patterns
 
 ### Lazy Loading
+
 **Pattern**: Load resources only when needed
 **Implementation**: Dynamic imports, virtual scrolling
 
 ### Memoization
+
 **Pattern**: Cache expensive computations
 **Implementation**: React.memo, useMemo, useCallback
 
 ### Resource Pooling
+
 **Pattern**: Reuse expensive resources
 **Implementation**: Database connection pooling, agent instance caching
 
 ### Atomic Commit Pattern (2025-08-05)
+
 **Problem**: Two-commit pattern creates temporal inconsistency between code changes and Memory Bank updates
 **Solution**: Single atomic commits that include both code changes and Memory Bank updates
 **Implementation**:
@@ -243,12 +284,14 @@ git commit -m "feat(api): add user endpoint + update progress tracking"
 ```
 
 **Workflow Changes**:
+
 1. Update Memory Bank files BEFORE staging any changes
-2. Stage both code changes AND Memory Bank updates together  
+2. Stage both code changes AND Memory Bank updates together
 3. Create single commit with enhanced message format
 4. Push atomically to maintain consistency
 
 **Benefits**:
+
 - Eliminates temporal inconsistency between code and documentation
 - Simplifies git history with single commits per logical change
 - Reduces commit overhead and improves developer workflow
@@ -256,9 +299,10 @@ git commit -m "feat(api): add user endpoint + update progress tracking"
 - Enables easier rollbacks of complete changes
 
 **Message Format**:
+
 - `type(scope): summary + memory bank updates`
 - Example: `feat(auth): implement JWT authentication + update progress tracking`
 
 ---
 
-*New patterns are appended to this document as they are discovered and validated in the codebase.*
+_New patterns are appended to this document as they are discovered and validated in the codebase._

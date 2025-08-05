@@ -8,12 +8,12 @@ services:
       POSTGRES_PASSWORD: chainpass
       POSTGRES_DB: chainworkspace
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chainuser -d chainworkspace"]
+      test: ['CMD-SHELL', 'pg_isready -U chainuser -d chainworkspace']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,7 +23,7 @@ services:
   adminer:
     image: adminer:4.8.1
     ports:
-      - "8080:8080"
+      - '8080:8080'
     environment:
       ADMINER_DEFAULT_SERVER: db
       ADMINER_DESIGN: dracula
@@ -38,12 +38,12 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 30s
       timeout: 10s
       retries: 3

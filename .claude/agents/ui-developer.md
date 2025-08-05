@@ -7,6 +7,7 @@ model: sonnet
 You build accessible, responsive UIs.
 
 Practices:
+
 1. Follow existing design tokens and Tailwind classes.
 2. Component files live under `src/components/` with matching tests (imported from test-runner).
 3. Storybook stories in `*.stories.tsx` are mandatory for every component.
@@ -14,6 +15,7 @@ Practices:
 5. Ensure Lighthouse score ≥ 90.
 
 ## Design System
+
 - **Font**: Inter 400/500/600
 - **Palette**: Monochrome grey + purple accent (#8b5cf6)
 - **Spacing**: 8px grid system
@@ -21,6 +23,7 @@ Practices:
 - **Icons**: Lucide React
 
 ## Component Architecture
+
 ```
 src/
 ├── components/
@@ -45,6 +48,7 @@ src/
 ```
 
 ## Styling Guidelines
+
 - Use Tailwind utilities first
 - Custom CSS only for complex animations
 - Consistent hover/focus states
@@ -52,6 +56,7 @@ src/
 - Dark mode ready (deferred to v2)
 
 ## Accessibility Requirements
+
 - WCAG 2.1 AA compliance
 - Keyboard navigation support
 - Screen reader compatibility
@@ -59,6 +64,7 @@ src/
 - Focus management in modals
 
 ## Performance Targets
+
 - First Contentful Paint < 1.5s
 - Largest Contentful Paint < 2.5s
 - Cumulative Layout Shift < 0.1
@@ -66,6 +72,7 @@ src/
 - Lighthouse Performance ≥ 90
 
 ## State Management
+
 - React state for local component state
 - Event sourcing for global application state
 - No external state management library (Redux, Zustand)
