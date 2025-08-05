@@ -1,0 +1,148 @@
+// Prisma Schema for Chain Workspace Application
+// Based on Technology Stack Specification (tech-stack-v1)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Events table - Append-only event sourcing log
+model Event {
+  seq        Int      @id @default(autoincrement())
+  timestamp  DateTime @default(now()) @db.Timestamptz
+  actorId    String   @map("actor_id") @db.VarChar(255)
+  eventType  String   @map("event_type") @db.VarChar(100)
+  payload    Json     @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([actorId])
+  @@map("events")
+}
+
+// Documents table - Manual snapshots/versions
+model Document {
+  id        String   @id @default(uuid()) @db.Uuid
+  version   Int      @default(1)
+  basedOn   String?  @map("based_on") @db.Uuid
+  title     String   @db.VarChar(500)
+  content   Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Self-referential relationship for version history
+  baseDocument Document?  @relation("DocumentVersions", fields: [basedOn], references: [id])
+  versions     Document[] @relation("DocumentVersions")
+
+  // Relationships
+  chains ChainNode[]
+
+  @@index([id, createdAt(sort: Desc)])
+  @@index([basedOn])
+  @@map("documents")
+}
+
+// Agents table - AI agent definitions
+model Agent {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  config    Json     @db.JsonB // Contains prompt, model, tools, etc.
+  secrets   Json     @db.JsonB // API keys, etc. (encrypted)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relationships
+  chains ChainNode[]
+
+  @@index([isActive])
+  @@map("agents")
+}
+
+// Chains table - High-level canvas containers
+model Chain {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relationships
+  nodes ChainNode[]
+  edges ChainEdge[]
+
+  @@map("chains")
+}
+
+// Chain nodes table - Nodes within a chain (documents or agents)
+model ChainNode {
+  id       String    @id @default(uuid()) @db.Uuid
+  chainId  String    @map("chain_id") @db.Uuid
+  nodeType NodeType  @map("node_type")
+  x        Float     // Canvas coordinates
+  y        Float
+  
+  // Polymorphic relationships
+  documentId String?  @map("document_id") @db.Uuid
+  agentId    String?  @map("agent_id") @db.Uuid
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relationships
+  chain    Chain     @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id])
+  agent    Agent?    @relation(fields: [agentId], references: [id])
+  
+  fromEdges ChainEdge[] @relation("FromNode")
+  toEdges   ChainEdge[] @relation("ToNode")
+
+  @@index([chainId])
+  @@index([nodeType])
+  @@map("chain_nodes")
+}
+
+// Chain edges table - Connections between nodes
+model ChainEdge {
+  id      String @id @default(uuid()) @db.Uuid
+  chainId String @map("chain_id") @db.Uuid
+  fromId  String @map("from_id") @db.Uuid
+  toId    String @map("to_id") @db.Uuid
+  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relationships
+  chain    Chain     @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  fromNode ChainNode @relation("FromNode", fields: [fromId], references: [id], onDelete: Cascade)
+  toNode   ChainNode @relation("ToNode", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId]) // Prevent duplicate edges
+  @@index([chainId])
+  @@map("chain_edges")
+}
+
+// Files table - Binary assets metadata (prepared for future use)
+model File {
+  id        String   @id @default(uuid()) @db.Uuid
+  filename  String   @db.VarChar(500)
+  mimeType  String   @map("mime_type") @db.VarChar(100)
+  size      Int      // Bytes
+  url       String?  @db.VarChar(1000) // S3/MinIO URL
+  hash      String   @db.VarChar(64) // SHA-256 for deduplication
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([hash])
+  @@index([mimeType])
+  @@map("files")
+}
+
+// Enums
+enum NodeType {
+  DOCUMENT
+  AGENT
+}
