@@ -184,7 +184,7 @@ export const complexAgent = {
   },
 }
 
-// Event fixtures
+// Event fixtures for integration testing
 export const baseEvent = {
   type: 'ADD_NODE',
   payload: {
@@ -197,6 +197,86 @@ export const baseEvent = {
   id: 'event-123',
   userId: 'user-456',
 }
+
+// Additional event fixtures for comprehensive testing
+export const createEventRequest = {
+  type: 'CREATE_CHAIN',
+  payload: {
+    chainId: 'chain-new',
+    name: 'New Chain',
+    description: 'Test chain creation',
+  },
+  userId: 'user-creator',
+}
+
+export const updateEventRequest = {
+  type: 'UPDATE_NODE',
+  payload: {
+    nodeId: 'node-456',
+    changes: {
+      position: { x: 150, y: 300 },
+      data: { title: 'Updated Document' },
+    },
+  },
+  timestamp: new Date('2024-01-02T10:30:00.000Z'),
+  userId: 'user-editor',
+}
+
+export const chainEvents = [
+  {
+    type: 'CHAIN_CREATE',
+    payload: { chainId: 'chain-1', name: 'Test Chain 1' },
+    timestamp: new Date('2024-01-01T09:00:00.000Z'),
+    userId: 'user-1',
+    id: 'chain-event-1',
+  },
+  {
+    type: 'CHAIN_UPDATE',
+    payload: { chainId: 'chain-1', name: 'Updated Chain 1' },
+    timestamp: new Date('2024-01-01T10:00:00.000Z'),
+    userId: 'user-1',
+    id: 'chain-event-2',
+  },
+  {
+    type: 'CHAIN_DELETE',
+    payload: { chainId: 'chain-1' },
+    timestamp: new Date('2024-01-01T11:00:00.000Z'),
+    userId: 'user-1',
+    id: 'chain-event-3',
+  },
+]
+
+export const nodeEvents = [
+  {
+    type: 'NODE_ADD',
+    payload: {
+      nodeId: 'node-1',
+      nodeType: 'document',
+      position: { x: 0, y: 0 },
+    },
+    timestamp: new Date('2024-01-01T12:00:00.000Z'),
+    userId: 'user-2',
+    id: 'node-event-1',
+  },
+  {
+    type: 'NODE_MOVE',
+    payload: {
+      nodeId: 'node-1',
+      fromPosition: { x: 0, y: 0 },
+      toPosition: { x: 100, y: 100 },
+    },
+    timestamp: new Date('2024-01-01T13:00:00.000Z'),
+    userId: 'user-2',
+    id: 'node-event-2',
+  },
+  {
+    type: 'NODE_DELETE',
+    payload: { nodeId: 'node-1' },
+    timestamp: new Date('2024-01-01T14:00:00.000Z'),
+    userId: 'user-2',
+    id: 'node-event-3',
+  },
+]
 
 export const minimalEvent = {
   type: 'SAVE_CHAIN',
