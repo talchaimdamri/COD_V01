@@ -106,6 +106,49 @@ const newState = addNode(initialState, nodeData);
 expect(newState.nodes).toHaveLength(1);
 ```
 
+### Test-Driven Development (TDD) Cycle
+**Pattern**: Red-Green-Refactor cycle with Task Master integration
+**Implementation**:
+1. **test-runner** sub-agent creates failing tests for task requirements
+2. **schema-keeper/ui-developer/backend-developer** implement minimal code to pass
+3. **commit-bot** refactors and commits with task references
+4. Repeat for each subtask within a task
+
+## Workflow Patterns
+
+### Task Master TDD Workflow
+**Problem**: Need systematic approach to track development progress with test-first methodology
+**Solution**: Task-based development with automated progress tracking
+**Implementation**:
+
+```bash
+# 1. Get next available task
+task-master next
+
+# 2. Create failing tests first (test-runner sub-agent)
+test(task-X): add [test type] tests for [feature]
+
+# 3. Implement minimal code to pass (domain sub-agent)
+feat(task-X): implement [component/service] with [functionality]
+
+# 4. Commit with task reference (commit-bot)
+feat(task-X): complete [subtask description]
+- ✅ All tests passing
+- ✅ Memory Bank updated
+Closes task-X.Y
+```
+
+**Task Structure**:
+- Tasks generated from PRD parsing with AI analysis
+- Each task contains 4-9 TDD subtasks
+- Dependencies tracked between tasks
+- Progress visible through `task-master list`
+
+**Commit Format**:
+- All commits reference task numbers: `feat(task-3): implement core schemas`
+- Task completion commits include comprehensive checklist
+- Memory Bank automatically updated with progress
+
 ## Error Handling Patterns
 
 ### Railway-Oriented Programming

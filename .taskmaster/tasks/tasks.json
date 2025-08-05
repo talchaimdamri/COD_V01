@@ -1,0 +1,561 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Initialize Project Structure and Development Environment",
+        "description": "Set up the monorepo structure with React 18 + Vite frontend, Node.js 20 + Fastify backend, PostgreSQL 16 database, and Docker containerization",
+        "details": "Create project structure with src/ (React frontend), api/ (Node.js backend), schemas/ (Zod schemas), docker/ (containers), and migrations/ (SQL). Initialize package.json with React 18.2+, Vite 5+, TypeScript 5+, Tailwind CSS 3.4+, Fastify 4.24+, Prisma 5.6+, Zod 3.22+. Set up Docker Compose with PostgreSQL 16, Node.js 20 Alpine images. Configure Vite dev server on port 3000, Fastify on 3001, PostgreSQL on 5432, Adminer on 8080. Install TipTap editor dependencies: @tiptap/react, @tiptap/pm, @tiptap/starter-kit.",
+        "testStrategy": "Verify all services start correctly with docker-compose up, test API health endpoint, confirm frontend loads, validate database connection, run lint and typecheck scripts",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Design and Implement Database Schema",
+        "description": "Create PostgreSQL schema for event-sourced architecture supporting chains, documents, agents, and version history",
+        "details": "Design event-sourced schema with tables: events (id, aggregate_id, event_type, payload, timestamp), chains (id, name, canvas_state), documents (id, title, content, version), agents (id, name, prompt, model, tools), document_versions (id, document_id, content, created_at), edges (id, source_id, target_id, type). Use Prisma ORM with PostgreSQL provider. Implement append-only event log pattern for undo/redo capability. Add proper indexes on aggregate_id, timestamp, and foreign keys.",
+        "testStrategy": "Write migration tests, validate schema constraints, test event sourcing patterns, verify foreign key relationships, benchmark query performance with sample data",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Core Zod Schemas and Data Validation",
+        "description": "Create shared Zod schemas for API contracts, database models, and client-server communication following TDD methodology with test-first development",
+        "status": "pending",
+        "dependencies": [
+          2
+        ],
+        "priority": "high",
+        "details": "Follow TDD workflow using test-runner sub-agent to create failing tests first, then schema-keeper for implementation. Define schemas in schemas/ directory with api/, database/, and events/ subdirectories: ChainSchema (id, name, nodes, edges), DocumentSchema (id, title, content, metadata), AgentSchema (id, name, prompt, model, tools), EventSchema (type, payload, timestamp). Use Zod 3.22+ with strict validation, custom error messages, and TypeScript inference. Create API request/response schemas, WebSocket message schemas, and database entity schemas. Export types and validators. Complete with commit-bot for code commit and Memory Bank updates.",
+        "testStrategy": "Start with unit tests UT-UT-01 for validators using test-runner sub-agent. Test schema validation edge cases and invalid inputs, verify TypeScript type inference, validate serialization/deserialization. Test API request/response schema validation, WebSocket message validation, and database entity validation.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create failing tests for core schemas (TDD)",
+            "description": "Use test-runner sub-agent to create unit tests UT-UT-01 for schema validators before implementation",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create test files for ChainSchema, DocumentSchema, AgentSchema, and EventSchema validation. Test valid inputs, invalid inputs, edge cases, and TypeScript type inference. Tests should fail initially.",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Set up schemas directory structure",
+            "description": "Create schemas/ directory with api/, database/, and events/ subdirectories following project structure",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create schemas/api/, schemas/database/, and schemas/events/ directories. Set up index files for clean exports.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement ChainSchema with schema-keeper",
+            "description": "Create ChainSchema for chain data validation with id, name, nodes, edges properties",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use schema-keeper sub-agent to implement ChainSchema with Zod 3.22+. Include strict validation, custom error messages, and TypeScript inference.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement DocumentSchema with schema-keeper",
+            "description": "Create DocumentSchema for document data validation with id, title, content, metadata properties",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use schema-keeper sub-agent to implement DocumentSchema with proper validation rules and TypeScript types.",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement AgentSchema with schema-keeper",
+            "description": "Create AgentSchema for agent configuration validation with id, name, prompt, model, tools properties",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use schema-keeper sub-agent to implement AgentSchema with validation for agent properties and tool configurations.",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement EventSchema with schema-keeper",
+            "description": "Create EventSchema for event sourcing validation with type, payload, timestamp properties",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use schema-keeper sub-agent to implement EventSchema for event-sourced state management with proper payload validation.",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Create API request/response schemas",
+            "description": "Implement schemas for API endpoints in schemas/api/ directory",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create request and response schemas for all API endpoints, ensuring proper validation and type safety.",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Create WebSocket message schemas",
+            "description": "Implement schemas for WebSocket communication in schemas/events/ directory",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create schemas for real-time messaging, agent execution updates, and other WebSocket communications.",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Verify all tests pass and commit",
+            "description": "Use commit-bot to run tests, commit code, and update Memory Bank",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Ensure all unit tests UT-UT-01 pass, run full test suite, commit schemas with proper git message, and update Memory Bank with implementation notes.",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Build Fastify Backend API with JWT Authentication Placeholder",
+        "description": "Set up Fastify server with routing, middleware, JWT placeholder, and basic CRUD endpoints following TDD methodology",
+        "status": "pending",
+        "dependencies": [
+          3
+        ],
+        "priority": "high",
+        "details": "Follow TDD workflow: First use test-runner sub-agent to create failing integration tests (IT-EV-01, IT-EV-02, IT-EV-03, IT-AU-01) using Supertest. Then use backend-developer sub-agent for implementation. Initialize Fastify 4.24+ server with TypeScript in api/ directory with routes/, services/, middleware/ subdirectories. Implement Zod validation plugin, CORS middleware, and JSON schema validation. Create events API CRUD endpoints: GET/POST /api/events, PUT/DELETE /api/events/:id. Add JWT middleware placeholder using @fastify/jwt with httpOnly cookies. Set up error handling, request logging, and health check endpoint. Use Fastify's built-in validation with Zod schemas from task 3.",
+        "testStrategy": "Start with test-runner sub-agent creating integration tests (IT-EV-01: GET /api/events, IT-EV-02: POST /api/events, IT-EV-03: Event validation, IT-AU-01: JWT authentication) using Supertest. Tests should fail initially, then pass after implementation. Verify CORS configuration, validate error handling, test request/response schemas.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Integration Tests with test-runner Sub-agent",
+            "description": "Use test-runner sub-agent to create failing integration tests for events API",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create tests/integration/events.test.ts with IT-EV-01 (GET /api/events), IT-EV-02 (POST /api/events), IT-EV-03 (Event validation), IT-AU-01 (JWT authentication). Use Supertest for HTTP testing. Tests should initially fail as API doesn't exist yet.",
+            "testStrategy": "Verify tests fail appropriately before implementation"
+          },
+          {
+            "id": 2,
+            "title": "Set up Fastify Server Structure with backend-developer Sub-agent",
+            "description": "Create api/ directory structure and initialize Fastify server",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create api/ directory with routes/, services/, middleware/ subdirectories. Initialize Fastify 4.24+ server with TypeScript, Zod plugin, CORS middleware in api/server.ts. Set up proper project structure following existing patterns.",
+            "testStrategy": "Verify server starts without errors and serves basic endpoints"
+          },
+          {
+            "id": 3,
+            "title": "Implement JWT Authentication Middleware Placeholder",
+            "description": "Add JWT middleware using @fastify/jwt with httpOnly cookies",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Install and configure @fastify/jwt plugin. Create middleware/auth.ts with JWT token validation placeholder. Set up httpOnly cookie handling for secure token storage. Implement authentication decorators for protected routes.",
+            "testStrategy": "Verify JWT middleware is registered and IT-AU-01 test passes"
+          },
+          {
+            "id": 4,
+            "title": "Implement Events API CRUD Endpoints",
+            "description": "Create events API routes with CRUD operations",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create routes/events.ts with GET/POST /api/events, PUT/DELETE /api/events/:id endpoints. Implement services/events.ts for business logic. Use Zod schemas from task 3 for request/response validation. Add proper error handling and logging.",
+            "testStrategy": "Verify IT-EV-01, IT-EV-02, IT-EV-03 integration tests pass"
+          },
+          {
+            "id": 5,
+            "title": "Add Error Handling and Health Check",
+            "description": "Implement global error handling and health check endpoint",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create middleware/errorHandler.ts for centralized error handling. Add GET /health endpoint for service monitoring. Implement request logging middleware. Ensure proper HTTP status codes and error responses.",
+            "testStrategy": "Test error scenarios and verify health check endpoint responds correctly"
+          },
+          {
+            "id": 6,
+            "title": "Verify All Integration Tests Pass",
+            "description": "Run all integration tests to ensure implementation is complete",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Execute all integration tests created in subtask 1. Verify IT-EV-01, IT-EV-02, IT-EV-03, IT-AU-01 all pass. Fix any remaining issues to achieve green test suite.",
+            "testStrategy": "All integration tests must pass for task completion"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Create SVG Canvas Component with Pan/Zoom/Grid",
+        "description": "Build the main canvas component with SVG rendering, pan/zoom controls, and 8px background grid using TDD methodology",
+        "status": "pending",
+        "dependencies": [
+          4
+        ],
+        "priority": "high",
+        "details": "Follow TDD workflow: start with test-runner sub-agent creating E2E tests (E2E-CV-01, E2E-CV-02) using Playwright, then ui-developer sub-agent implements React component. Create Canvas component in src/components/canvas/ directory using SVG with viewBox for pan/zoom. Implement mouse/touch events for dragging, wheel events for zoom, keyboard shortcuts for navigation. Add 8px dotted grid pattern as SVG defs. Integrate event sourcing for state management instead of plain React hooks. Implement bounds checking and smooth animations with CSS transitions. Support zoom range 0.1x to 5x, pan boundaries based on content.",
+        "testStrategy": "Start with E2E tests using Playwright (E2E-CV-01, E2E-CV-02 from comprehensive test plan), then unit tests for pan/zoom calculations, test mouse/touch interactions, verify grid rendering, test keyboard shortcuts, performance test with large viewports, validate event sourcing integration",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create E2E Tests for Canvas Component (test-runner)",
+            "description": "Use test-runner sub-agent to create comprehensive E2E tests using Playwright",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Implement E2E-CV-01 and E2E-CV-02 test scenarios from the comprehensive test plan. Create Playwright tests that verify canvas initialization, pan/zoom functionality, grid rendering, mouse/touch interactions, and keyboard shortcuts. Set up test data and mock scenarios for canvas operations.",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Set up Canvas Component Structure (ui-developer)",
+            "description": "Create the basic Canvas component structure in src/components/canvas/",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use ui-developer sub-agent to create Canvas component directory structure. Set up Canvas.tsx, CanvasGrid.tsx, and supporting files. Implement basic SVG structure with viewBox configuration. Create TypeScript interfaces for canvas state and props.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Event Sourcing Integration (ui-developer)",
+            "description": "Integrate event sourcing for canvas state management",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Replace plain React hooks with event sourcing pattern for canvas transform, zoom level, and selection state. Create canvas events (PAN_CANVAS, ZOOM_CANVAS, SELECT_ELEMENT) and corresponding reducers. Implement undo/redo functionality for canvas operations.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Pan/Zoom Controls (ui-developer)",
+            "description": "Add mouse/touch pan and wheel zoom functionality",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Implement mouse drag for panning, wheel events for zooming, touch gestures for mobile. Add zoom range limits (0.1x to 5x), pan boundary constraints, and smooth CSS transitions. Handle viewBox transformations and coordinate system conversions.",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create 8px Background Grid (ui-developer)",
+            "description": "Implement SVG background grid pattern",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create 8px dotted grid pattern using SVG defs and pattern elements. Ensure grid scales properly with zoom levels and maintains visual consistency. Make grid toggleable and responsive to canvas transformations.",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add Keyboard Navigation (ui-developer)",
+            "description": "Implement keyboard shortcuts for canvas navigation",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Add keyboard shortcuts for pan (arrow keys), zoom (+ / -), reset view (R), and other canvas operations. Implement proper focus management and accessibility features. Handle keyboard event bubbling and conflicts.",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Verify E2E Test Coverage",
+            "description": "Ensure all implemented features pass E2E tests",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Run E2E-CV-01 and E2E-CV-02 tests against implemented Canvas component. Verify all pan/zoom functionality, grid rendering, keyboard shortcuts, and event sourcing integration work as expected. Fix any failing test scenarios.",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Implement Document and Agent Node Components",
+        "description": "Create draggable SVG node components for documents and agents with visual styling",
+        "details": "Build DocumentNode and AgentNode as SVG components with distinct visual styles. DocumentNode: rounded rectangle, document icon, title text. AgentNode: circular/hexagonal shape, agent icon, model indicator. Implement drag behavior with SVG transform, collision detection, and snap-to-grid. Add selection states, hover effects, and connection points. Use SVG foreignObject for text overflow handling.",
+        "testStrategy": "Test drag interactions, verify visual styling, test selection states, validate SVG rendering across browsers, test node positioning and collision detection",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Build Edge Connection System",
+        "description": "Implement SVG edge rendering and automatic connection creation between nodes",
+        "details": "Create Edge component using SVG path with bezier curves or straight lines. Implement automatic edge creation when DocumentNode is dropped on AgentNode. Add connection points/anchors on nodes, visual feedback during drag operations. Support different edge types: document-to-agent, agent-to-document. Include arrow markers, edge labels, and selection highlighting. Handle edge routing around nodes.",
+        "testStrategy": "Test drag-and-drop edge creation, verify SVG path rendering, test edge selection and deletion, validate connection point positioning, test edge routing algorithms",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Create Left Sidebar Object Library",
+        "description": "Build collapsible sidebar with chains, documents, and agents lists at 320px fixed width",
+        "details": "Create collapsible sidebar component with three sections: Chains, Documents, Agents. Fixed 320px width with resize handle, toggle collapse/expand. Implement virtualized lists for performance with large datasets. Add search/filter functionality, drag-and-drop from sidebar to canvas. Use React Virtual or @tanstack/react-virtual for list virtualization. Include icons, thumbnails, and metadata display.",
+        "testStrategy": "Test sidebar collapse/expand, verify drag-and-drop from sidebar, test virtualized list performance, validate search functionality, test responsive behavior",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Right Inspector Panel for Agent Configuration",
+        "description": "Build context-sensitive inspector panel that opens when an AgentNode is selected",
+        "details": "Create inspector panel component that slides in from right when AgentNode is selected. Display agent properties: name, prompt, model selection, tools configuration. Include form controls with real-time validation using React Hook Form and Zod schemas. Add auto-generate prompt button, model dropdown (GPT-4, Claude, etc.), and tools checklist. Panel should be responsive and scrollable.",
+        "testStrategy": "Test panel open/close behavior, verify form validation, test model selection dropdown, validate real-time updates, test panel responsiveness",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Build TipTap Document Editor Modal",
+        "description": "Create rich text editor modal with TipTap, version history, and document rails following TDD methodology",
+        "status": "pending",
+        "dependencies": [
+          3
+        ],
+        "priority": "high",
+        "details": "Follow TDD workflow: First use test-runner sub-agent to create failing E2E tests (E2E-DV-01) and unit tests for document editing functionality. Then use ui-developer sub-agent for implementation. Create TipTap editor modal in src/components/modals/ directory at 70% width with maximize option. Configure TipTap with StarterKit, heading, bullet list, ordered list, code block extensions. Add custom toolbar with formatting options, Ask Agent button, Undo/Redo, Save Version. Implement document rails showing upstream/downstream connections. Integrate with event sourcing system for document change tracking. Use @tiptap/react 2.1+, @tiptap/extension-* packages for features.",
+        "testStrategy": "Start with test-runner sub-agent creating E2E tests (E2E-DV-01) and unit tests for document editing. Tests should fail initially, then pass after implementation. Test editor functionality, verify modal behavior, test toolbar actions, validate version saving, test document rails display, verify undo/redo functionality, test event sourcing integration for document changes",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create failing E2E and unit tests for document editor",
+            "description": "Use test-runner sub-agent to create comprehensive test suite",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create E2E test E2E-DV-01 for document editing workflow including modal opening, text editing, formatting, version saving, and document rails interaction. Add unit tests for TipTap editor configuration, toolbar functionality, and event sourcing integration. Tests should fail initially to follow TDD methodology.",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Set up TipTap modal component structure",
+            "description": "Create modal component foundation in src/components/modals/",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Use ui-developer sub-agent to create DocumentEditorModal component with proper modal dialog structure, 70% width sizing, maximize functionality, and modal overlay behavior. Set up component file structure and basic props interface.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Configure TipTap editor with required extensions",
+            "description": "Implement TipTap editor with StarterKit and additional extensions",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Configure TipTap editor with StarterKit, heading, bullet list, ordered list, code block extensions. Set up @tiptap/react 2.1+ with proper TypeScript integration and editor instance management.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Build custom toolbar with formatting controls",
+            "description": "Create toolbar with formatting options and special buttons",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Implement custom toolbar with text formatting options (bold, italic, headings), Ask Agent button, Undo/Redo controls, and Save Version functionality. Ensure toolbar is responsive and accessible.",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement document rails for upstream/downstream connections",
+            "description": "Add document rails showing chain connections",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create document rails component showing upstream and downstream document connections. Display visual indicators of document relationships and allow navigation between connected documents.",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Integrate event sourcing for document changes",
+            "description": "Connect editor to event sourcing system",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Implement event sourcing integration to track all document changes. Capture edit events, version snapshots, and maintain immutable change history for undo/redo functionality and version management.",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Verify all tests pass and functionality works",
+            "description": "Ensure TDD cycle completion with passing tests",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Run all E2E and unit tests to verify they now pass. Test complete document editor functionality including modal behavior, editing capabilities, version history, and document rails integration.",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Implement Document Version History and Undo/Redo",
+        "description": "Build version control system with event sourcing for document changes and UI controls following TDD methodology",
+        "status": "pending",
+        "dependencies": [
+          10,
+          2
+        ],
+        "priority": "high",
+        "details": "Following TDD approach, implement event-sourced version history storing document change events with immutable change history. Create version list UI showing timestamps, change descriptions, and diff previews. Add undo/redo functionality using command pattern with event replay. Store events in PostgreSQL with proper indexing. Implement diff algorithm for text comparison using diff-match-patch library. Add version restoration and branching capabilities. Implementation follows sub-agent workflow: test-runner creates comprehensive tests first, then backend-developer and ui-developer implement features.",
+        "testStrategy": "Start with test-runner sub-agent creating unit tests (UT-UR-01, UT-UR-02, UT-SS-01) and E2E tests (E2E-VS-01, E2E-VS-02) from comprehensive test plan. Test version creation and restoration, verify undo/redo functionality, test diff calculation, validate event sourcing integrity, test version list UI",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create comprehensive test suite for version history system",
+            "description": "Use test-runner sub-agent to create unit tests and E2E tests for version control functionality",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create unit tests UT-UR-01 (undo/redo operations), UT-UR-02 (version restoration), UT-SS-01 (event sourcing integrity). Create E2E tests E2E-VS-01 (version list UI interactions), E2E-VS-02 (full version history workflow). Tests should cover event creation, version restoration, diff calculation, and UI interactions.",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement event sourcing backend with PostgreSQL storage",
+            "description": "Use backend-developer sub-agent to implement event-sourced version control system",
+            "status": "pending",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement immutable event store in PostgreSQL with proper indexing. Create event models for document changes, command pattern for undo/redo operations, and event replay functionality. Add API endpoints for version history retrieval, diff calculation using diff-match-patch library, and version restoration.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build version history UI components and controls",
+            "description": "Use ui-developer sub-agent to create version list UI and undo/redo controls",
+            "status": "pending",
+            "dependencies": [
+              2
+            ],
+            "details": "Create version history panel showing timestamps, change descriptions, and diff previews. Implement undo/redo buttons with keyboard shortcuts. Add version restoration interface and diff visualization. Ensure responsive design and proper state management for version operations.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Integrate version history with document editing system",
+            "description": "Connect version control system with existing document components",
+            "status": "pending",
+            "dependencies": [
+              3
+            ],
+            "details": "Integrate event sourcing with document editing operations. Ensure all document changes trigger version events. Connect undo/redo controls to document state management. Add version branching capabilities and conflict resolution.",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Create Agent Editor Popup with Model Selection",
+        "description": "Build agent configuration popup with prompt editing, model selection, and tools configuration",
+        "details": "Create popup overlay for agent editing with prompt textarea, model dropdown (OpenAI GPT-4, Claude 3.5, etc.), and tools selection. Add auto-generate prompt functionality using LLM API. Include agent testing interface with sample inputs. Implement form validation with Zod schemas. Add agent templates and prompt library. Support custom model parameters (temperature, max tokens).",
+        "testStrategy": "Test popup display and form functionality, verify model selection, test auto-generate prompt feature, validate form validation, test agent templates",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Manual Agent Execution with Streaming Output",
+        "description": "Build agent run system with LLM API integration and real-time output streaming following TDD methodology",
+        "status": "pending",
+        "dependencies": [
+          12,
+          4
+        ],
+        "priority": "high",
+        "details": "Following TDD approach, implement agent execution engine calling OpenAI API with streaming responses. Start with test-runner sub-agent creating comprehensive unit and integration tests. Use backend-developer sub-agent for LLM API integration with streaming support, error handling, and timeout management. Use ui-developer sub-agent for real-time output display component with SSE or WebSocket connection. Support multiple LLM providers (OpenAI, Anthropic) with adapter pattern. Implement rate limiting, request queuing, and execution status tracking. Store execution results in database with proper indexing.",
+        "testStrategy": "Start with test-runner sub-agent creating unit tests (UT-AR-01, UT-AR-02) and integration tests (IT-AG-01, IT-AG-02) from comprehensive test plan. Test LLM API integration, verify streaming output display, test error handling and timeout scenarios, validate execution status tracking, test multiple model providers, performance test with concurrent runs and rate limiting",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create unit tests for agent execution engine (UT-AR-01, UT-AR-02)",
+            "description": "Use test-runner sub-agent to create comprehensive unit tests for agent execution logic",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create failing unit tests for agent execution engine including LLM API calls, response handling, error scenarios, and timeout management. Tests should cover execution state transitions, streaming response parsing, and provider adapter pattern.",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Create integration tests for agent system (IT-AG-01, IT-AG-02)",
+            "description": "Use test-runner sub-agent to create integration tests for complete agent execution flow",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create integration tests covering end-to-end agent execution, database storage of results, streaming output delivery, and multi-provider support. Include tests for rate limiting and concurrent execution scenarios.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement LLM API integration with streaming support",
+            "description": "Use backend-developer sub-agent to implement LLM provider adapters and streaming API",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Implement OpenAI and Anthropic API adapters with streaming response handling. Create execution engine with proper error handling, timeout management, and status tracking. Add rate limiting and request queuing system.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Build real-time output streaming UI component",
+            "description": "Use ui-developer sub-agent to create streaming output display with SSE/WebSocket",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create run window component displaying real-time agent output using Server-Sent Events or WebSocket connection. Include execution status indicators, progress tracking, and error display with proper reconnection handling.",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement execution result storage and retrieval",
+            "description": "Create database schema and services for storing agent execution results",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Design and implement database schema for storing execution results, logs, and metadata. Create services for result persistence and retrieval with proper indexing for performance.",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Build Chain State Management and Canvas Persistence",
+        "description": "Implement canvas state management, auto-save functionality, and chain persistence",
+        "details": "Create Redux Toolkit or Zustand store for canvas state management. Implement auto-save with debounced API calls every 30 seconds. Store canvas state: node positions, zoom level, selections, edge connections. Add chain loading/saving with optimistic updates. Implement state rehydration on page refresh. Handle concurrent modifications with conflict resolution.",
+        "testStrategy": "Test state persistence and rehydration, verify auto-save functionality, test concurrent modification handling, validate canvas state integrity, test optimistic updates",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement Node Context Menus and Interaction System",
+        "description": "Add long-press context menus, double-click handlers, and node interaction system",
+        "details": "Implement long-press detection for AgentNode showing Edit/Delete context menu. Add double-click handler for DocumentNode opening editor modal. Create context menu component with proper positioning and click-outside handling. Add keyboard shortcuts for common actions (Delete, Copy, Paste). Implement multi-selection with Ctrl+click and rectangle selection. Add node grouping and bulk operations.",
+        "testStrategy": "Test long-press detection on different devices, verify context menu positioning, test double-click behavior, validate keyboard shortcuts, test multi-selection functionality",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-05T03:13:56.307Z",
+      "updated": "2025-08-05T03:18:19.321Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

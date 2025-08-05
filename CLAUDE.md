@@ -155,6 +155,43 @@ COD_V01/
 4. **backend-developer** - Implements API endpoints
 5. **commit-bot** - Commits code, runs tests, updates Memory Bank
 
+## Task-Based Commit Format
+All commits should reference Task Master task numbers for traceability:
+
+### Commit Message Format
+```bash
+# Task-specific commits
+feat(task-3): implement core Zod schemas for API validation
+fix(task-5): resolve canvas pan/zoom boundary calculations
+test(task-4): add integration tests for events API endpoints
+refactor(task-11): optimize event sourcing performance
+
+# Setup and maintenance commits
+feat(setup): integrate Task Master AI for TDD workflow management
+docs(memory): update Memory Bank with task completion progress
+ci(deps): update dependencies for security patches
+```
+
+### Task Completion Commits
+When completing tasks, use the commit-bot agent with this format:
+```bash
+feat(task-X): complete [task title]
+
+- ✅ [subtask 1 description] 
+- ✅ [subtask 2 description]
+- ✅ All tests passing (unit/integration/e2e)
+- ✅ Memory Bank updated with progress
+
+Closes task-X
+```
+
+### Sub-Agent Commit Guidelines
+- **test-runner**: `test(task-X): add [test type] tests for [feature]`
+- **schema-keeper**: `feat(task-X): define [schema name] with validation rules`
+- **ui-developer**: `feat(task-X): implement [component name] with [key features]`  
+- **backend-developer**: `feat(task-X): add [endpoint/service] with [functionality]`
+- **commit-bot**: Always includes Memory Bank updates and task references
+
 ## Memory Bank Files
 - `projectbrief.md` - High-level project description (read-only)
 - `productContext.md` - Feature requirements and business context
@@ -190,3 +227,7 @@ NODE_ENV=development
 - Backend (Fastify): 3001
 - Database (PostgreSQL): 5432
 - Adminer (DB GUI): 8080
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md
