@@ -228,6 +228,37 @@ Closes task-X.Y
 **Pattern**: Reuse expensive resources
 **Implementation**: Database connection pooling, agent instance caching
 
+### Atomic Commit Pattern (2025-08-05)
+**Problem**: Two-commit pattern creates temporal inconsistency between code changes and Memory Bank updates
+**Solution**: Single atomic commits that include both code changes and Memory Bank updates
+**Implementation**:
+
+```bash
+# OLD: Two-commit pattern (eliminated)
+git commit -m "feat(api): add user endpoint"
+git commit -m "docs(memory): update Memory Bank with API progress"
+
+# NEW: Atomic commit pattern
+git commit -m "feat(api): add user endpoint + update progress tracking"
+```
+
+**Workflow Changes**:
+1. Update Memory Bank files BEFORE staging any changes
+2. Stage both code changes AND Memory Bank updates together  
+3. Create single commit with enhanced message format
+4. Push atomically to maintain consistency
+
+**Benefits**:
+- Eliminates temporal inconsistency between code and documentation
+- Simplifies git history with single commits per logical change
+- Reduces commit overhead and improves developer workflow
+- Maintains audit trail integrity through atomic operations
+- Enables easier rollbacks of complete changes
+
+**Message Format**:
+- `type(scope): summary + memory bank updates`
+- Example: `feat(auth): implement JWT authentication + update progress tracking`
+
 ---
 
 *New patterns are appended to this document as they are discovered and validated in the codebase.*

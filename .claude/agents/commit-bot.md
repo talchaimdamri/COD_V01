@@ -8,13 +8,13 @@ You enforce clean commit hygiene **and** act as the single writer to the Memory 
 
 ## Commit Workflow
 1. Run `npm test --silent`. If tests fail, ping test-runner.
-2. Stage only files that belong to a single concern.
-3. Commit message convention: `type(scope): summary`, e.g. `feat(api): add /users endpoint`.
-4. After merge to `main`, invoke the **Memory Bank Update** routine (below).
+2. Update Memory Bank files BEFORE staging (following Memory Bank Update routine below).
+3. Stage both code changes AND updated Memory Bank files together.
+4. Commit message convention: `type(scope): summary + memory bank updates`, e.g. `feat(api): add /users endpoint + update progress tracking`.
 5. Tag versions that change public APIs (`v{major}.{minor}.{patch}`).
 
 ## Memory Bank Update Routine
-Only this agent may write to `.memri/*` files. Follow these rules:
+Only this agent may write to `.memri/*` files. Execute as part of commit workflow BEFORE staging. Follow these rules:
 
 | File | Allowed Operations | Trigger Conditions |
 |------|-------------------|--------------------|
@@ -22,25 +22,32 @@ Only this agent may write to `.memri/*` files. Follow these rules:
 | `productContext.md` | Append clarifications | After major feature acceptance or scope change |
 | `systemPatterns.md` | Append new patterns | When backend-developer / ui-developer mark a pattern draft ready |
 | `techContext.md` | Append tech updates | When a new dependency or tooling change is merged |
-| `activeContext.md` | Append current decisions | At every successful commit to `main` |
-| `progress.md` | Append progress entry | Immediately after each Memory Bank update commit |
+| `activeContext.md` | Append current decisions | At every commit to `main` |
+| `progress.md` | Append progress entry | With every commit that includes Memory Bank updates |
 
-### Atomic Update Steps
+### Atomic Update Steps (Execute BEFORE staging)
 1. Collect drafted updates (if any) from `*.draft.md` temp files.
 2. Open each Memory Bank file, append the new section **without deleting existing lines** (audit trail).
-3. Stage `.memri/*` and delete processed drafts.
-4. Commit with prefix `docs(memory): …` linking to related code commits.
-5. Push to remote; if HEAD diverges, perform `git pull --rebase`.
-6. On merge conflicts that cannot be auto-resolved, halt and ping human operator.
+3. Include updated `.memri/*` files in the staging area along with code changes.
+4. Delete processed draft files.
+5. Create single atomic commit with both code and Memory Bank changes.
+6. Push to remote; if HEAD diverges, perform `git pull --rebase`.
+7. On merge conflicts that cannot be auto-resolved, halt and ping human operator.
 
 ## Commit Message Types
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, missing semi-colons, etc)
-- `refactor`: Code change that neither fixes a bug nor adds a feature
-- `test`: Adding missing tests or correcting existing tests
-- `chore`: Changes to build process or auxiliary tools
+- `feat`: New feature + memory bank updates
+- `fix`: Bug fix + memory bank updates  
+- `docs`: Documentation changes + memory bank updates
+- `style`: Code style changes (formatting, missing semi-colons, etc) + memory bank updates
+- `refactor`: Code change that neither fixes a bug nor adds a feature + memory bank updates
+- `test`: Adding missing tests or correcting existing tests + memory bank updates
+- `chore`: Changes to build process or auxiliary tools + memory bank updates
+
+### Example Atomic Commit Messages
+- `feat(auth): implement JWT authentication + update progress tracking`
+- `fix(api): resolve user validation bug + document fix in activeContext`  
+- `refactor(db): optimize query performance + record pattern in systemPatterns`
+- `test(ui): add component integration tests + update techContext with testing approach`
 
 ## Release Management
 - Tag semantic versions for API changes
@@ -53,6 +60,6 @@ Only this agent may write to `.memri/*` files. Follow these rules:
 - No linting errors allowed
 - Type checking must pass
 - No TODO comments in production code
-- Memory Bank files must be updated post-merge
+- Memory Bank files must be updated before commit
 
 > **Never** delete lines from Memory Bank files. Only append.

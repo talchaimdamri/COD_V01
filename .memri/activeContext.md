@@ -138,6 +138,32 @@
 
 **Next Actions**: Apply enhanced testing standards to upcoming Task 3 schema validation tests
 
+### 2025-08-05: Atomic Commit Workflow Decision
+**Status**: COMPLETED
+**Decision**: Implement atomic commit workflow eliminating two-commit pattern
+**Context**: Previous workflow created temporal inconsistency between code changes and Memory Bank updates
+**Implementation**:
+- **Updated commit-bot.md**: Reordered workflow to update Memory Bank BEFORE staging
+- **Enhanced commit messages**: New format includes `+ memory bank updates` suffix
+- **Atomic staging**: Both code changes AND Memory Bank updates staged together
+- **Single commit pattern**: One commit per logical change instead of separate code/docs commits
+- **Quality gate enforcement**: Memory Bank updates required before commit (not after)
+
+**Benefits Realized**:
+- Eliminates temporal inconsistency in git history
+- Simplifies developer workflow with single commit per change
+- Maintains complete audit trail through atomic operations
+- Enables easier rollbacks of complete logical changes
+- Reduces git log noise from separate documentation commits
+
+**Impact**: 
+- commit-bot agent now enforces atomic workflow pattern
+- All future commits will follow enhanced message format
+- Memory Bank consistency guaranteed through pre-commit updates
+- Development velocity improved through simplified commit process
+
+**Next Implementation**: Apply atomic commit pattern starting with this commit
+
 ---
 
 *Active decisions and context are appended chronologically. Completed decisions move to appropriate specialized Memory Bank files.*
