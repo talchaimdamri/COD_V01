@@ -3,6 +3,7 @@ import CanvasGrid from './CanvasGrid'
 import { 
   CanvasProps, 
   Position, 
+  CanvasNode,
   CANVAS_CONFIG 
 } from './types'
 import { useCanvasEventSourcing } from '../../lib/eventSourcing'
@@ -50,7 +51,15 @@ const Canvas: React.FC<CanvasProps> = ({
     lastTouches: [] as React.Touch[],
   })
 
-  // Handle keyboard shortcuts for undo/redo
+  // Local state for temporary pan mode (space bar)
+  const [isSpacePanning, setIsSpacePanning] = useState(false)
+  const [spaceKeyDown, setSpaceKeyDown] = useState(false)
+  
+  // Local optimistic state for keyboard interactions
+  const [optimisticViewBox, setOptimisticViewBox] = useState<ViewBox | null>(null)
+  const [optimisticScale, setOptimisticScale] = useState<number | null>(null)
+
+  // Handle global keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
@@ -155,8 +164,8 @@ const Canvas: React.FC<CanvasProps> = ({
     const target = event.target as Element
     const nodeElement = target.closest('[data-testid="canvas-node"]')
     
-    if (nodeElement) {
-      // Start node drag
+    if (nodeElement && !isSpacePanning) {
+      // Start node drag (only if not in space pan mode)
       const nodeId = nodeElement.getAttribute('data-node-id')
       if (nodeId) {
         event.preventDefault()
@@ -173,15 +182,17 @@ const Canvas: React.FC<CanvasProps> = ({
         onNodeSelect?.(nodeId)
       }
     } else {
-      // Start canvas pan
+      // Start canvas pan (either normal pan or space pan mode)
       event.preventDefault()
       setLastMousePosition({ x: event.clientX, y: event.clientY })
       setIsPanning(true)
       
-      selectElement(null)
-      onNodeSelect?.(null)
+      if (!isSpacePanning) {
+        selectElement(null)
+        onNodeSelect?.(null)
+      }
     }
-  }, [screenToSVG, onNodeSelect, selectElement])
+  }, [screenToSVG, onNodeSelect, selectElement, isSpacePanning])
 
   // Handle mouse move events
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
@@ -300,102 +311,335 @@ const Canvas: React.FC<CanvasProps> = ({
     onGridToggle?.(!canvasState.showGrid)
   }, [canvasState.showGrid, onGridToggle])
 
+  // Helper function to perform zoom operations
+  const performZoom = useCallback(async (direction: 'in' | 'out') => {
+    const currentScale = optimisticScale || canvasState.scale
+    const currentViewBox = optimisticViewBox || canvasState.viewBox
+    const zoomMultiplier = direction === 'in' ? (1 + CANVAS_CONFIG.ZOOM_STEP) : (1 - CANVAS_CONFIG.ZOOM_STEP)
+    const newScale = CanvasEventUtils.clampZoom(currentScale * zoomMultiplier)
+    
+    if (Math.abs(newScale - currentScale) < 0.01) return // Skip if zoom change is too small
+    
+    const centerPos = {
+      x: currentViewBox.x + currentViewBox.width / 2,
+      y: currentViewBox.y + currentViewBox.height / 2,
+    }
+    const scaleFactor = newScale / currentScale
+    const newViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+      centerPos.x - (centerPos.x - currentViewBox.x) / scaleFactor,
+      centerPos.y - (centerPos.y - currentViewBox.y) / scaleFactor,
+      currentViewBox.width / scaleFactor,
+      currentViewBox.height / scaleFactor
+    ))
+    
+    // Optimistic updates
+    setOptimisticScale(newScale)
+    setOptimisticViewBox(newViewBox)
+    
+    // Fire and forget for persistence
+    zoomCanvas(canvasState.scale, newScale, canvasState.viewBox, newViewBox, centerPos).catch(console.error)
+    onViewChange?.(newViewBox, newScale)
+  }, [canvasState.scale, canvasState.viewBox, optimisticScale, optimisticViewBox, zoomCanvas, onViewChange, constrainViewBox])
+
+  // Helper function to zoom to a specific level
+  const performZoomToLevel = useCallback(async (targetZoom: number) => {
+    const currentScale = optimisticScale || canvasState.scale
+    const currentViewBox = optimisticViewBox || canvasState.viewBox
+    const newScale = CanvasEventUtils.clampZoom(targetZoom)
+    
+    if (Math.abs(newScale - currentScale) < 0.01) return // Skip if zoom change is too small
+    
+    const centerPos = {
+      x: currentViewBox.x + currentViewBox.width / 2,
+      y: currentViewBox.y + currentViewBox.height / 2,
+    }
+    const scaleFactor = newScale / currentScale
+    const newViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+      centerPos.x - (centerPos.x - currentViewBox.x) / scaleFactor,
+      centerPos.y - (centerPos.y - currentViewBox.y) / scaleFactor,
+      currentViewBox.width / scaleFactor,
+      currentViewBox.height / scaleFactor
+    ))
+    
+    // Optimistic updates
+    setOptimisticScale(newScale)
+    setOptimisticViewBox(newViewBox)
+    
+    // Fire and forget for persistence
+    zoomCanvas(canvasState.scale, newScale, canvasState.viewBox, newViewBox, centerPos).catch(console.error)
+    onViewChange?.(newViewBox, newScale)
+  }, [canvasState.scale, canvasState.viewBox, optimisticScale, optimisticViewBox, zoomCanvas, onViewChange, constrainViewBox])
+
+  // Helper function to fit content to view
+  const fitToContent = useCallback(async () => {
+    if (canvasState.nodes.length === 0) {
+      // If no nodes, reset to default view
+      await resetView(canvasState.viewBox, canvasState.scale, 'keyboard')
+      onViewChange?.(canvasState.viewBox, canvasState.scale)
+      return
+    }
+
+    // Calculate bounding box of all nodes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    
+    canvasState.nodes.forEach(node => {
+      const nodeRadius = CANVAS_CONFIG.NODE_RADIUS
+      minX = Math.min(minX, node.position.x - nodeRadius)
+      minY = Math.min(minY, node.position.y - nodeRadius)
+      maxX = Math.max(maxX, node.position.x + nodeRadius)
+      maxY = Math.max(maxY, node.position.y + nodeRadius)
+    })
+
+    // Add padding around content
+    const padding = 100
+    minX -= padding
+    minY -= padding
+    maxX += padding
+    maxY += padding
+
+    // Calculate new viewBox to fit content
+    const contentWidth = maxX - minX
+    const contentHeight = maxY - minY
+    
+    const newViewBox = CanvasEventUtils.createViewBox(minX, minY, contentWidth, contentHeight)
+    const newScale = Math.min(
+      canvasState.viewBox.width / contentWidth,
+      canvasState.viewBox.height / contentHeight
+    )
+    const clampedScale = CanvasEventUtils.clampZoom(newScale)
+
+    await zoomCanvas(canvasState.scale, clampedScale, canvasState.viewBox, newViewBox, { x: (minX + maxX) / 2, y: (minY + maxY) / 2 })
+    onViewChange?.(newViewBox, clampedScale)
+  }, [canvasState.nodes, canvasState.viewBox, canvasState.scale, resetView, zoomCanvas, onViewChange])
+
+  // Helper function for tab navigation through nodes
+  const navigateNodes = useCallback((direction: 'next' | 'previous') => {
+    if (canvasState.nodes.length === 0) return
+
+    const currentIndex = canvasState.selectedNodeId 
+      ? canvasState.nodes.findIndex(node => node.id === canvasState.selectedNodeId)
+      : -1
+
+    let newIndex: number
+    if (direction === 'next') {
+      newIndex = currentIndex < canvasState.nodes.length - 1 ? currentIndex + 1 : 0
+    } else {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : canvasState.nodes.length - 1
+    }
+
+    const newSelectedNode = canvasState.nodes[newIndex]
+    if (newSelectedNode) {
+      selectElement(newSelectedNode.id)
+      onNodeSelect?.(newSelectedNode.id)
+
+      // Pan to show the selected node if it's not visible
+      panToNode(newSelectedNode)
+    }
+  }, [canvasState.nodes, canvasState.selectedNodeId, selectElement, onNodeSelect])
+
+  // Helper function to pan to show a specific node
+  const panToNode = useCallback(async (node: CanvasNode) => {
+    const nodeX = node.position.x
+    const nodeY = node.position.y
+    
+    // Check if node is already visible
+    const margin = 50
+    const isVisible = (
+      nodeX >= canvasState.viewBox.x + margin &&
+      nodeX <= canvasState.viewBox.x + canvasState.viewBox.width - margin &&
+      nodeY >= canvasState.viewBox.y + margin &&
+      nodeY <= canvasState.viewBox.y + canvasState.viewBox.height - margin
+    )
+
+    if (!isVisible) {
+      // Center the viewBox on the node
+      const newViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+        nodeX - canvasState.viewBox.width / 2,
+        nodeY - canvasState.viewBox.height / 2,
+        canvasState.viewBox.width,
+        canvasState.viewBox.height
+      ))
+      
+      const deltaX = newViewBox.x - canvasState.viewBox.x
+      const deltaY = newViewBox.y - canvasState.viewBox.y
+      
+      await panCanvas(canvasState.viewBox, newViewBox, deltaX, deltaY)
+      onViewChange?.(newViewBox, canvasState.scale)
+    }
+  }, [canvasState.viewBox, canvasState.scale, panCanvas, onViewChange, constrainViewBox])
+
   // Handle keyboard shortcuts
-  const handleKeyDown = useCallback(async (event: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     try {
-      switch (event.key) {
-        case 'g':
-        case 'G':
-          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      // Handle space bar for temporary pan mode
+      if (event.code === 'Space' && !spaceKeyDown && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        event.preventDefault()
+        setSpaceKeyDown(true)
+        setIsSpacePanning(true)
+        return
+      }
+
+      // Use event.code for more reliable key detection and allow key repeats for smooth panning
+      switch (event.code) {
+        // Pan navigation with arrow keys - allow repeats for smooth continuous panning
+        case 'ArrowRight':
+          event.preventDefault()
+          const currentViewBox = optimisticViewBox || canvasState.viewBox
+          const rightViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+            currentViewBox.x + CANVAS_CONFIG.PAN_STEP,
+            currentViewBox.y,
+            currentViewBox.width,
+            currentViewBox.height
+          ))
+          // Immediate optimistic update
+          setOptimisticViewBox(rightViewBox)
+          // Notify parent immediately
+          onViewChange?.(rightViewBox, canvasState.scale)
+          // Persist via event sourcing (fire and forget)
+          panCanvas(canvasState.viewBox, rightViewBox, CANVAS_CONFIG.PAN_STEP, 0).catch(console.error)
+          break
+        case 'ArrowLeft':
+          event.preventDefault()
+          const currentViewBox2 = optimisticViewBox || canvasState.viewBox
+          const leftViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+            currentViewBox2.x - CANVAS_CONFIG.PAN_STEP,
+            currentViewBox2.y,
+            currentViewBox2.width,
+            currentViewBox2.height
+          ))
+          // Immediate optimistic update
+          setOptimisticViewBox(leftViewBox)
+          // Notify parent immediately
+          onViewChange?.(leftViewBox, canvasState.scale)
+          // Persist via event sourcing (fire and forget)
+          panCanvas(canvasState.viewBox, leftViewBox, -CANVAS_CONFIG.PAN_STEP, 0).catch(console.error)
+          break
+        case 'ArrowDown':
+          event.preventDefault()
+          const currentViewBox3 = optimisticViewBox || canvasState.viewBox
+          const downViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+            currentViewBox3.x,
+            currentViewBox3.y + CANVAS_CONFIG.PAN_STEP,
+            currentViewBox3.width,
+            currentViewBox3.height
+          ))
+          // Immediate optimistic update
+          setOptimisticViewBox(downViewBox)
+          // Notify parent immediately
+          onViewChange?.(downViewBox, canvasState.scale)
+          // Persist via event sourcing (fire and forget)
+          panCanvas(canvasState.viewBox, downViewBox, 0, CANVAS_CONFIG.PAN_STEP).catch(console.error)
+          break
+        case 'ArrowUp':
+          event.preventDefault()
+          const currentViewBox4 = optimisticViewBox || canvasState.viewBox
+          const upViewBox = constrainViewBox(CanvasEventUtils.createViewBox(
+            currentViewBox4.x,
+            currentViewBox4.y - CANVAS_CONFIG.PAN_STEP,
+            currentViewBox4.width,
+            currentViewBox4.height
+          ))
+          // Immediate optimistic update
+          setOptimisticViewBox(upViewBox)
+          // Notify parent immediately
+          onViewChange?.(upViewBox, canvasState.scale)
+          // Persist via event sourcing (fire and forget)
+          panCanvas(canvasState.viewBox, upViewBox, 0, -CANVAS_CONFIG.PAN_STEP).catch(console.error)
+          break
+
+        // Zoom controls - support both with and without Ctrl modifier
+        case 'Equal': // + key on US keyboard
+          if (!event.repeat) {
+            event.preventDefault()
+            performZoom('in').catch(console.error)
+          }
+          break
+        case 'Minus': // - key
+          if (!event.repeat) {
+            event.preventDefault()
+            performZoom('out').catch(console.error)
+          }
+          break
+
+        // View reset controls
+        case 'KeyR':
+          if (!event.ctrlKey && !event.metaKey && !event.repeat) {
+            event.preventDefault()
+            resetView(canvasState.viewBox, canvasState.scale, 'keyboard').catch(console.error)
+            onViewChange?.(canvasState.viewBox, canvasState.scale)
+          }
+          break
+        case 'Digit0':
+          if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && !event.repeat) {
+            event.preventDefault()
+            resetView(canvasState.viewBox, canvasState.scale, 'keyboard').catch(console.error)
+            onViewChange?.(canvasState.viewBox, canvasState.scale)
+          }
+          break
+
+        // Preset zoom levels (1-9)
+        case 'Digit1':
+        case 'Digit2':
+        case 'Digit3':
+        case 'Digit4':
+        case 'Digit5':
+        case 'Digit6':
+        case 'Digit7':
+        case 'Digit8':
+        case 'Digit9':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
+            event.preventDefault()
+            const zoomLevel = parseInt(event.code.slice(-1)) * 0.5 // 1=0.5x, 2=1.0x, 3=1.5x, etc.
+            performZoomToLevel(zoomLevel).catch(console.error)
+          }
+          break
+
+        // Grid toggle
+        case 'KeyG':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
             event.preventDefault()
             toggleGrid()
           }
           break
-        case 'ArrowRight':
-          event.preventDefault()
-          const rightViewBox = CanvasEventUtils.createViewBox(
-            canvasState.viewBox.x + CANVAS_CONFIG.PAN_STEP,
-            canvasState.viewBox.y,
-            canvasState.viewBox.width,
-            canvasState.viewBox.height
-          )
-          await panCanvas(canvasState.viewBox, rightViewBox, -CANVAS_CONFIG.PAN_STEP, 0)
-          break
-        case 'ArrowLeft':
-          event.preventDefault()
-          const leftViewBox = CanvasEventUtils.createViewBox(
-            canvasState.viewBox.x - CANVAS_CONFIG.PAN_STEP,
-            canvasState.viewBox.y,
-            canvasState.viewBox.width,
-            canvasState.viewBox.height
-          )
-          await panCanvas(canvasState.viewBox, leftViewBox, CANVAS_CONFIG.PAN_STEP, 0)
-          break
-        case 'ArrowDown':
-          event.preventDefault()
-          const downViewBox = CanvasEventUtils.createViewBox(
-            canvasState.viewBox.x,
-            canvasState.viewBox.y + CANVAS_CONFIG.PAN_STEP,
-            canvasState.viewBox.width,
-            canvasState.viewBox.height
-          )
-          await panCanvas(canvasState.viewBox, downViewBox, 0, -CANVAS_CONFIG.PAN_STEP)
-          break
-        case 'ArrowUp':
-          event.preventDefault()
-          const upViewBox = CanvasEventUtils.createViewBox(
-            canvasState.viewBox.x,
-            canvasState.viewBox.y - CANVAS_CONFIG.PAN_STEP,
-            canvasState.viewBox.width,
-            canvasState.viewBox.height
-          )
-          await panCanvas(canvasState.viewBox, upViewBox, 0, CANVAS_CONFIG.PAN_STEP)
-          break
-        case 'r':
-        case 'R':
-          if (!event.ctrlKey && !event.metaKey) {
+
+        // Home key for fit-to-content
+        case 'Home':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
             event.preventDefault()
-            await resetView(canvasState.viewBox, canvasState.scale, 'keyboard')
+            fitToContent().catch(console.error)
           }
           break
-        case '=':
-        case '+':
-          event.preventDefault()
-          const zoomInScale = CanvasEventUtils.clampZoom(canvasState.scale * (1 + CANVAS_CONFIG.ZOOM_STEP))
-          const centerPos = {
-            x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
-            y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+
+        // Escape key for clearing selections
+        case 'Escape':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
+            event.preventDefault()
+            selectElement(null)
+            onNodeSelect?.(null)
           }
-          const scaleFactor = zoomInScale / canvasState.scale
-          const zoomInViewBox = CanvasEventUtils.createViewBox(
-            centerPos.x - (centerPos.x - canvasState.viewBox.x) * scaleFactor,
-            centerPos.y - (centerPos.y - canvasState.viewBox.y) * scaleFactor,
-            canvasState.viewBox.width * scaleFactor,
-            canvasState.viewBox.height * scaleFactor
-          )
-          await zoomCanvas(canvasState.scale, zoomInScale, canvasState.viewBox, zoomInViewBox, centerPos)
           break
-        case '-':
-          event.preventDefault()
-          const zoomOutScale = CanvasEventUtils.clampZoom(canvasState.scale * (1 - CANVAS_CONFIG.ZOOM_STEP))
-          const centerPosOut = {
-            x: canvasState.viewBox.x + canvasState.viewBox.width / 2,
-            y: canvasState.viewBox.y + canvasState.viewBox.height / 2,
+
+        // Tab navigation for accessibility
+        case 'Tab':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.repeat) {
+            event.preventDefault()
+            navigateNodes(event.shiftKey ? 'previous' : 'next')
           }
-          const scaleFactorOut = zoomOutScale / canvasState.scale
-          const zoomOutViewBox = CanvasEventUtils.createViewBox(
-            centerPosOut.x - (centerPosOut.x - canvasState.viewBox.x) * scaleFactorOut,
-            centerPosOut.y - (centerPosOut.y - canvasState.viewBox.y) * scaleFactorOut,
-            canvasState.viewBox.width * scaleFactorOut,
-            canvasState.viewBox.height * scaleFactorOut
-          )
-          await zoomCanvas(canvasState.scale, zoomOutScale, canvasState.viewBox, zoomOutViewBox, centerPosOut)
           break
       }
     } catch (error) {
       console.error('Failed to handle keyboard shortcut:', error)
     }
-  }, [canvasState.viewBox, canvasState.scale, panCanvas, resetView, zoomCanvas, toggleGrid])
+  }, [canvasState.viewBox, canvasState.scale, canvasState.nodes, canvasState.selectedNodeId, spaceKeyDown, panCanvas, resetView, zoomCanvas, toggleGrid, selectElement, onNodeSelect, onViewChange, constrainViewBox, performZoom, performZoomToLevel, fitToContent, navigateNodes])
+
+  // Handle key up events
+  const handleKeyUp = useCallback((event: React.KeyboardEvent) => {
+    if (event.code === 'Space' && spaceKeyDown) {
+      event.preventDefault()
+      setSpaceKeyDown(false)
+      setIsSpacePanning(false)
+    }
+  }, [spaceKeyDown])
 
   // Handle touch start events
   const handleTouchStart = useCallback((event: React.TouchEvent) => {
@@ -578,7 +822,26 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [createDocumentNode, createAgentNode])
 
-  const viewBoxString = `${canvasState.viewBox.x} ${canvasState.viewBox.y} ${canvasState.viewBox.width} ${canvasState.viewBox.height}`
+  // Use optimistic viewBox if available, otherwise use canvasState
+  const displayViewBox = optimisticViewBox || canvasState.viewBox
+  const displayScale = optimisticScale || canvasState.scale
+  const viewBoxString = `${displayViewBox.x} ${displayViewBox.y} ${displayViewBox.width} ${displayViewBox.height}`
+  
+  // Clear optimistic state when canvasState updates
+  useEffect(() => {
+    if (optimisticViewBox && (
+      Math.abs(canvasState.viewBox.x - optimisticViewBox.x) < 1 &&
+      Math.abs(canvasState.viewBox.y - optimisticViewBox.y) < 1
+    )) {
+      setOptimisticViewBox(null)
+    }
+  }, [canvasState.viewBox, optimisticViewBox])
+  
+  useEffect(() => {
+    if (optimisticScale && Math.abs(canvasState.scale - optimisticScale) < 0.01) {
+      setOptimisticScale(null)
+    }
+  }, [canvasState.scale, optimisticScale])
 
   // Show loading overlay if event sourcing is loading
   if (isLoading && canvasState.nodes.length === 0) {
@@ -598,8 +861,13 @@ const Canvas: React.FC<CanvasProps> = ({
       data-testid="canvas" 
       className={`canvas-container ${className} ${isLoading ? 'opacity-75' : ''}`}
       aria-label="Interactive canvas for document workflow"
+      aria-describedby="canvas-keyboard-shortcuts"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onKeyUp={handleKeyUp}
+      style={{
+        outline: 'none', // Remove default focus outline, we'll handle focus visually
+      }}
     >
       {/* Error display */}
       {error && (
@@ -643,13 +911,13 @@ const Canvas: React.FC<CanvasProps> = ({
         onTouchEnd={handleTouchEnd}
         style={{
           touchAction: 'none', // Prevent browser touch behaviors
-          cursor: isPanning ? 'grabbing' : localDragState.isDragging ? 'grabbing' : 'grab'
+          cursor: isPanning || isSpacePanning || localDragState.isDragging ? 'grabbing' : 'grab'
         }}
       >
         {/* Grid - using showGrid from canvas state */}
         <CanvasGrid 
-          viewBox={canvasState.viewBox} 
-          scale={canvasState.scale} 
+          viewBox={displayViewBox} 
+          scale={displayScale} 
           visible={canvasState.showGrid} 
         />
         
@@ -696,6 +964,13 @@ const Canvas: React.FC<CanvasProps> = ({
           )
         })}
       </svg>
+      
+      {/* Hidden accessibility information for keyboard shortcuts */}
+      <div id="canvas-keyboard-shortcuts" className="sr-only">
+        Keyboard shortcuts: Arrow keys to pan, +/- to zoom, R to reset view, Escape to clear selection, 
+        Tab/Shift+Tab to navigate nodes, Space bar for temporary pan mode, Home key to fit content, 
+        Number keys 1-9 for preset zoom levels, G to toggle grid, Ctrl+Z/Y for undo/redo.
+      </div>
     </div>
   )
 }

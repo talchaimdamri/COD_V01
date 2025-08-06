@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Keyboard</title>
+</head>
+<body>
+    <div id="canvas" tabindex="0" style="width: 800px; height: 600px; border: 1px solid black; outline: none;">
+        Click me and press arrow keys
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        
+        canvas.addEventListener('keydown', (event) => {
+            console.log('Key pressed:', event.code, event.key);
+            
+            switch (event.code) {
+                case 'ArrowRight':
+                    console.log('Arrow right pressed');
+                    event.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                    console.log('Arrow left pressed');
+                    event.preventDefault();
+                    break;
+                case 'ArrowUp':
+                    console.log('Arrow up pressed');
+                    event.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    console.log('Arrow down pressed');
+                    event.preventDefault();
+                    break;
+                case 'Equal':
+                    console.log('Plus key pressed');
+                    event.preventDefault();
+                    break;
+                case 'Minus':
+                    console.log('Minus key pressed');
+                    event.preventDefault();
+                    break;
+            }
+        });
+        
+        canvas.focus();
+    </script>
+</body>
+</html>
