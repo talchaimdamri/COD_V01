@@ -2,9 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react'
 import CanvasGrid from './CanvasGrid'
 import { 
   CanvasProps, 
-  CanvasNode, 
   Position, 
-  DEFAULT_VIEW_BOX,
   CANVAS_CONFIG 
 } from './types'
 import { useCanvasEventSourcing } from '../../lib/eventSourcing'
@@ -48,7 +46,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [touchState, setTouchState] = useState({
     initialDistance: 0,
     initialZoom: 1,
-    lastTouches: [] as Touch[],
+    lastTouches: [] as React.Touch[],
   })
 
   // Handle keyboard shortcuts for undo/redo
@@ -560,8 +558,8 @@ const Canvas: React.FC<CanvasProps> = ({
   useEffect(() => {
     // Make functions available globally for any remaining toolbar buttons
     if (typeof window !== 'undefined') {
-      (window as any).canvasCreateDocument = createDocumentNode
-      (window as any).canvasCreateAgent = createAgentNode
+      ;(window as any).canvasCreateDocument = createDocumentNode
+      ;(window as any).canvasCreateAgent = createAgentNode
     }
   }, [createDocumentNode, createAgentNode])
 

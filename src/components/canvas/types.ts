@@ -25,6 +25,7 @@ export interface CanvasState {
   scale: number
   isPanning: boolean
   selectedNodeId: string | null
+  showGrid: boolean
   dragState: {
     isDragging: boolean
     nodeId: string | null
@@ -39,6 +40,7 @@ export interface CanvasProps {
   onNodeMove?: (nodeId: string, position: Position) => void
   onNodeSelect?: (nodeId: string | null) => void
   onViewChange?: (viewBox: ViewBox, scale: number) => void
+  onGridToggle?: (showGrid: boolean) => void
 }
 
 export interface CanvasGridProps {

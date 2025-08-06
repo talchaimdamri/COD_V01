@@ -201,6 +201,7 @@ function reduceCanvasEvents(events: CanvasEvent[]): CanvasState {
     scale: 1,
     isPanning: false,
     selectedNodeId: null,
+    showGrid: true,
     dragState: {
       isDragging: false,
       nodeId: null,
@@ -337,6 +338,7 @@ export function useCanvasEventSourcing(): EventSourcingState & EventSourcingActi
       type: 'SELECT_ELEMENT',
       payload: {
         elementId,
+        multiSelect: false,
         elementType: elementId ? 'node' : undefined,
         previousSelection: canvasState.selectedNodeId,
       },
