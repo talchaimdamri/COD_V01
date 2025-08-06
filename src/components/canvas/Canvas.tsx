@@ -14,6 +14,7 @@ const Canvas: React.FC<CanvasProps> = ({
   onNodeMove,
   onNodeSelect,
   onViewChange,
+  onGridToggle,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
   
@@ -292,10 +293,24 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [canvasState.scale, canvasState.viewBox, screenToSVG, onViewChange, zoomCanvas, constrainViewBox])
 
+  // Toggle grid visibility
+  const toggleGrid = useCallback(() => {
+    // Since we don't have a toggleGrid function in event sourcing yet,
+    // we can notify the parent component through onGridToggle
+    onGridToggle?.(!canvasState.showGrid)
+  }, [canvasState.showGrid, onGridToggle])
+
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback(async (event: React.KeyboardEvent) => {
     try {
       switch (event.key) {
+        case 'g':
+        case 'G':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+            event.preventDefault()
+            toggleGrid()
+          }
+          break
         case 'ArrowRight':
           event.preventDefault()
           const rightViewBox = CanvasEventUtils.createViewBox(
@@ -380,7 +395,7 @@ const Canvas: React.FC<CanvasProps> = ({
     } catch (error) {
       console.error('Failed to handle keyboard shortcut:', error)
     }
-  }, [canvasState.viewBox, canvasState.scale, panCanvas, resetView, zoomCanvas])
+  }, [canvasState.viewBox, canvasState.scale, panCanvas, resetView, zoomCanvas, toggleGrid])
 
   // Handle touch start events
   const handleTouchStart = useCallback((event: React.TouchEvent) => {
@@ -631,11 +646,11 @@ const Canvas: React.FC<CanvasProps> = ({
           cursor: isPanning ? 'grabbing' : localDragState.isDragging ? 'grabbing' : 'grab'
         }}
       >
-        {/* Grid */}
+        {/* Grid - using showGrid from canvas state */}
         <CanvasGrid 
           viewBox={canvasState.viewBox} 
           scale={canvasState.scale} 
-          visible={true} 
+          visible={canvasState.showGrid} 
         />
         
         {/* Nodes */}
