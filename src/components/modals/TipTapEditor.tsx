@@ -41,37 +41,64 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         listItem: false,
         codeBlock: false,
         blockquote: false,
+        // Keep other StarterKit extensions enabled
+        history: {
+          depth: 100,
+          newGroupDelay: 500,
+        },
       }),
       Heading.configure({
         levels: [1, 2, 3],
+        HTMLAttributes: {
+          class: 'tiptap-heading',
+        },
       }),
       BulletList.configure({
         HTMLAttributes: {
           class: 'tiptap-bullet-list',
         },
+        keepMarks: true,
+        keepAttributes: false,
       }),
       OrderedList.configure({
         HTMLAttributes: {
           class: 'tiptap-ordered-list',
         },
+        keepMarks: true,
+        keepAttributes: false,
       }),
-      ListItem,
+      ListItem.configure({
+        HTMLAttributes: {
+          class: 'tiptap-list-item',
+        },
+      }),
       CodeBlock.configure({
         HTMLAttributes: {
           class: 'tiptap-code-block',
         },
+        languageClassPrefix: 'language-',
+        exitOnTripleEnter: true,
+        exitOnArrowDown: true,
       }),
       Blockquote.configure({
         HTMLAttributes: {
           class: 'tiptap-blockquote',
         },
       }),
-      Underline,
-      Strike,
+      Underline.configure({
+        HTMLAttributes: {
+          class: 'tiptap-underline',
+        },
+      }),
+      Strike.configure({
+        HTMLAttributes: {
+          class: 'tiptap-strike',
+        },
+      }),
     ],
     content,
     editable,
-    onUpdate: ({ editor, transaction }) => {
+    onUpdate: ({ editor }) => {
       const html = editor.getHTML()
       onChange(html)
     },
@@ -85,6 +112,15 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-full p-6',
         'data-testid': 'tiptap-editor-content',
+        spellcheck: 'true',
+      },
+      handlePaste: (view, event) => {
+        // Custom paste handling can be added here
+        return false // Let TipTap handle paste normally
+      },
+      handleDrop: (view, event, slice, moved) => {
+        // Custom drop handling can be added here
+        return false // Let TipTap handle drop normally
       },
     },
   })
@@ -92,9 +128,20 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Prevent default browser shortcuts and use our custom ones
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault()
         onSave?.()
+        return
+      }
+      
+      // Additional shortcuts for productivity
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+        if (event.key === 'a' || event.key === 'A') {
+          event.preventDefault()
+          // This would trigger Ask Agent functionality if implemented
+          return
+        }
       }
     }
 
@@ -145,7 +192,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
       />
       
       {/* Custom styles for TipTap content */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{__html: `
         .ProseMirror {
           min-height: 200px;
           padding: 1.5rem;
@@ -254,7 +301,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           margin: 0.75rem 0;
           line-height: 1.6;
         }
-      `}</style>
+      `}} />
     </div>
   )
 }
