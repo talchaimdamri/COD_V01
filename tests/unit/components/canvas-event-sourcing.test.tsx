@@ -8,16 +8,18 @@
 import { render, screen } from '@testing-library/react'
 import { describe, test, expect, vi } from 'vitest'
 import Canvas from '../../../src/components/canvas/Canvas'
+import * as eventSourcing from '../../../src/lib/eventSourcing'
 
 // Mock the event sourcing hook to avoid API calls in tests
 vi.mock('../../../src/lib/eventSourcing', () => ({
-  useCanvasEventSourcing: () => ({
+  useCanvasEventSourcing: vi.fn(() => ({
     canvasState: {
       nodes: [],
       viewBox: { x: 0, y: 0, width: 1200, height: 800 },
       scale: 1,
       isPanning: false,
       selectedNodeId: null,
+      showGrid: true,
       dragState: {
         isDragging: false,
         nodeId: null,
@@ -42,8 +44,10 @@ vi.mock('../../../src/lib/eventSourcing', () => ({
     redo: vi.fn(),
     replayEvents: vi.fn(),
     clearHistory: vi.fn(),
-  })
+  }))
 }))
+
+const mockedEventSourcing = vi.mocked(eventSourcing)
 
 describe('Canvas Event Sourcing Integration', () => {
   test('should render canvas with event sourcing without crashing', () => {
@@ -62,14 +66,15 @@ describe('Canvas Event Sourcing Integration', () => {
   })
 
   test('should handle loading state', () => {
-    // Mock loading state
-    vi.mocked(vi.importMock('../../../src/lib/eventSourcing')).useCanvasEventSourcing.mockReturnValueOnce({
+    // Override the mock for this test
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
       canvasState: {
         nodes: [],
         viewBox: { x: 0, y: 0, width: 1200, height: 800 },
         scale: 1,
         isPanning: false,
         selectedNodeId: null,
+        showGrid: true,
         dragState: {
           isDragging: false,
           nodeId: null,
@@ -104,13 +109,14 @@ describe('Canvas Event Sourcing Integration', () => {
 
   test('should display error state', () => {
     // Mock error state
-    vi.mocked(vi.importMock('../../../src/lib/eventSourcing')).useCanvasEventSourcing.mockReturnValueOnce({
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
       canvasState: {
         nodes: [],
         viewBox: { x: 0, y: 0, width: 1200, height: 800 },
         scale: 1,
         isPanning: false,
         selectedNodeId: null,
+        showGrid: true,
         dragState: {
           isDragging: false,
           nodeId: null,
@@ -145,13 +151,14 @@ describe('Canvas Event Sourcing Integration', () => {
 
   test('should show undo/redo indicators when available', () => {
     // Mock undo/redo available state
-    vi.mocked(vi.importMock('../../../src/lib/eventSourcing')).useCanvasEventSourcing.mockReturnValueOnce({
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
       canvasState: {
         nodes: [],
         viewBox: { x: 0, y: 0, width: 1200, height: 800 },
         scale: 1,
         isPanning: false,
         selectedNodeId: null,
+        showGrid: true,
         dragState: {
           isDragging: false,
           nodeId: null,
@@ -187,7 +194,7 @@ describe('Canvas Event Sourcing Integration', () => {
 
   test('should render nodes from event sourcing state', () => {
     // Mock state with nodes
-    vi.mocked(vi.importMock('../../../src/lib/eventSourcing')).useCanvasEventSourcing.mockReturnValueOnce({
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
       canvasState: {
         nodes: [
           {
@@ -207,6 +214,7 @@ describe('Canvas Event Sourcing Integration', () => {
         scale: 1,
         isPanning: false,
         selectedNodeId: 'node-1',
+        showGrid: true,
         dragState: {
           isDragging: false,
           nodeId: null,
