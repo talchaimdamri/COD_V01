@@ -24,6 +24,9 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   onSave,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false)
+  const [editor, setEditor] = useState<any>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isAskAgentLoading, setIsAskAgentLoading] = useState(false)
   
   // Use document event sourcing
   const {
@@ -90,6 +93,69 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
       handleClose()
     }
   }, [handleClose])
+
+  // Enhanced Ask Agent functionality
+  const handleAskAgent = useCallback(async () => {
+    if (!editor) return
+    
+    setIsAskAgentLoading(true)
+    try {
+      // Get current selection or entire document content
+      const selectedText = editor.state.doc.textBetween(
+        editor.state.selection.from,
+        editor.state.selection.to,
+        ' '
+      )
+      const contextText = selectedText || editor.getText()
+      
+      console.log('Ask Agent requested with context:', contextText.substring(0, 100) + '...')
+      
+      // TODO: Implement actual AI agent integration
+      // For now, show a placeholder response
+      setTimeout(() => {
+        // Simulate AI response - in production this would call an actual AI service
+        const suggestion = '// AI Agent suggestion would appear here based on the selected content'
+        
+        // Insert suggestion at current cursor position
+        if (selectedText) {
+          editor.chain().focus().insertContent(`\n\n**AI Suggestion:**\n${suggestion}\n\n`).run()
+        } else {
+          editor.chain().focus().insertContent(`\n\n**AI Analysis:**\n${suggestion}\n\n`).run()
+        }
+        
+        setIsAskAgentLoading(false)
+      }, 2000)
+      
+    } catch (error) {
+      console.error('Ask Agent error:', error)
+      setIsAskAgentLoading(false)
+    }
+  }, [editor])
+
+  // Enhanced Save Version functionality
+  const handleSaveVersion = useCallback(async () => {
+    setIsSaving(true)
+    try {
+      const description = `Manual save - ${new Date().toLocaleString()}`
+      await saveVersion({ description })
+      
+      // Also call the onSave prop if provided
+      if (onSave && documentState?.content) {
+        onSave(documentState.content)
+      }
+      
+      console.log('Version saved successfully')
+    } catch (error) {
+      console.error('Save version error:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [saveVersion, onSave, documentState?.content])
+
+  // Handle editor ready callback
+  const handleEditorReady = useCallback((editorInstance: any) => {
+    setEditor(editorInstance)
+  }, [])
 
   if (!isOpen) {
     return null
@@ -218,11 +284,13 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
               >
                 {/* Toolbar */}
                 <DocumentEditorToolbar
-                  editor={null as any} // Will be set properly when TipTap editor is integrated
-                  onAskAgent={() => console.log('Ask Agent clicked')}
-                  onSaveVersion={() => saveVersion({ description: 'Manual save' })}
+                  editor={editor}
+                  onAskAgent={handleAskAgent}
+                  onSaveVersion={handleSaveVersion}
                   canUndo={canUndo}
                   canRedo={canRedo}
+                  isSaving={isSaving}
+                  isAskAgentLoading={isAskAgentLoading}
                 />
 
                 {/* Editor Container */}
@@ -233,19 +301,32 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                   <TipTapEditor
                     content={documentState?.content || initialContent}
                     onChange={updateContent}
-                    onSave={onSave ? () => onSave(documentState?.content || '') : undefined}
+                    onSave={handleSaveVersion}
+                    onEditorReady={handleEditorReady}
                     placeholder="Start writing your document..."
                     className="h-full"
                   />
 
                   {/* Status Indicators */}
                   <div className="absolute bottom-4 right-4 flex items-center gap-2 text-xs">
-                    <div data-testid="saving-indicator" className="hidden text-orange-600">
-                      Saving...
-                    </div>
-                    <div data-testid="saved-indicator" className="text-green-600">
-                      Saved
-                    </div>
+                    {isSaving ? (
+                      <div data-testid="saving-indicator" className="text-orange-600 flex items-center gap-1">
+                        <div className="w-3 h-3 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+                        Saving...
+                      </div>
+                    ) : (
+                      <div data-testid="saved-indicator" className="text-green-600 flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-600 rounded-full" />
+                        Saved
+                      </div>
+                    )}
+                    
+                    {isAskAgentLoading && (
+                      <div data-testid="agent-indicator" className="text-purple-600 flex items-center gap-1">
+                        <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                        AI Agent working...
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

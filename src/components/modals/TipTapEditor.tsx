@@ -16,6 +16,7 @@ export interface TipTapEditorProps {
   onSave?: () => void
   onFocus?: () => void
   onBlur?: () => void
+  onEditorReady?: (editor: any) => void
   editable?: boolean
   placeholder?: string
   className?: string
@@ -27,6 +28,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   onSave,
   onFocus,
   onBlur,
+  onEditorReady,
   editable = true,
   placeholder = 'Start writing...',
   className = '',
@@ -153,6 +155,13 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [editor, onSave])
+
+  // Notify parent when editor is ready
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor)
+    }
+  }, [editor, onEditorReady])
 
   // Update content when prop changes
   useEffect(() => {
