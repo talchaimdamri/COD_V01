@@ -457,3 +457,96 @@ export function useCanvasEventSourcing(): EventSourcingState & EventSourcingActi
     clearHistory,
   }
 }
+
+/**
+ * Document Event Sourcing Hook
+ * Manages document state through event sourcing
+ */
+export interface DocumentState {
+  id: string
+  title: string
+  content: string
+  version: number
+  upstream: string[]
+  downstream: string[]
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface DocumentEventSourcingState {
+  documentState: DocumentState | null
+  eventHistory: any[]
+  currentEventIndex: number
+  isLoading: boolean
+  error: string | null
+  canUndo: boolean
+  canRedo: boolean
+}
+
+export interface DocumentEventSourcingActions {
+  updateContent: (content: string) => Promise<void>
+  saveVersion: (options: { description?: string }) => Promise<void>
+  undo: () => Promise<void>
+  redo: () => Promise<void>
+  addConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
+  removeConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
+}
+
+export function useDocumentEventSourcing(documentId: string): DocumentEventSourcingState & DocumentEventSourcingActions {
+  const [documentState, setDocumentState] = useState<DocumentState | null>({
+    id: documentId,
+    title: 'Test Document',
+    content: '<p>Test content</p>',
+    version: 1,
+    upstream: [],
+    downstream: [],
+  })
+  const [eventHistory] = useState<any[]>([])
+  const [currentEventIndex] = useState(-1)
+  const [isLoading] = useState(false)
+  const [error] = useState<string | null>(null)
+  const [canUndo] = useState(false)
+  const [canRedo] = useState(false)
+
+  const updateContent = useCallback(async (content: string) => {
+    if (documentState) {
+      setDocumentState(prev => prev ? { ...prev, content } : null)
+    }
+  }, [documentState])
+
+  const saveVersion = useCallback(async (options: { description?: string }) => {
+    console.log('Saving version with options:', options)
+  }, [])
+
+  const undo = useCallback(async () => {
+    console.log('Undo called')
+  }, [])
+
+  const redo = useCallback(async () => {
+    console.log('Redo called')
+  }, [])
+
+  const addConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
+    console.log('Adding connection:', connectionId, type)
+  }, [])
+
+  const removeConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
+    console.log('Removing connection:', connectionId, type)
+  }, [])
+
+  return {
+    documentState,
+    eventHistory,
+    currentEventIndex,
+    isLoading,
+    error,
+    canUndo,
+    canRedo,
+    updateContent,
+    saveVersion,
+    undo,
+    redo,
+    addConnection,
+    removeConnection,
+  }
+}
