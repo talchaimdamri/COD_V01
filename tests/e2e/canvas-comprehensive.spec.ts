@@ -213,4 +213,99 @@ test.describe('Canvas Component - Test Suite Integration', () => {
     const secondPage = await secondContext.newPage()
     const secondCanvasHelpers = new CanvasHelpers(secondPage)
     
-    try {\n      await secondCanvasHelpers.initializeCanvas()\n      \n      // Both should work independently\n      const operations1 = canvasHelpers.panCanvas({ x: 50, y: 0 })\n      const operations2 = secondCanvasHelpers.panCanvas({ x: -50, y: 0 })\n      \n      await Promise.all([operations1, operations2])\n      \n      // Both should have valid states\n      const viewBox1 = await canvasHelpers.getViewBox()\n      const viewBox2 = await secondCanvasHelpers.getViewBox()\n      \n      expect(viewBox1.width).toBeGreaterThan(0)\n      expect(viewBox2.width).toBeGreaterThan(0)\n      \n      // States should be independent\n      expect(viewBox1.x).not.toBe(viewBox2.x)\n      \n    } finally {\n      await secondContext.close()\n    }\n  })\n\n  test('should maintain test data integrity [E2E-CV-INTEGRITY-01]', async ({ page }) => {\n    // Test ID: E2E-CV-INTEGRITY-01\n    // PRD Reference: Test fixtures should remain consistent\n    \n    const canvasHelpers = new CanvasHelpers(page)\n    const eventHelpers = new EventAPIHelpers(page)\n    \n    await canvasHelpers.initializeCanvas()\n    \n    // Verify fixture data consistency\n    const canvas = canvasHelpers.getCanvas()\n    await expect(canvas).toBeVisible()\n    \n    // Verify selectors still work\n    const canvasContainer = page.locator(CANVAS_SELECTORS.canvas)\n    const canvasSvg = page.locator(CANVAS_SELECTORS.canvasSvg)\n    \n    await expect(canvasContainer).toBeVisible()\n    await expect(canvasSvg).toBeVisible()\n    \n    // Verify API helpers work\n    const events = await eventHelpers.getAllEvents()\n    expect(Array.isArray(events)).toBe(true)\n    \n    // Perform operation and verify event recording\n    await canvasHelpers.panCanvas({ x: 25, y: 25 })\n    \n    // Events should be recordable\n    const updatedEvents = await eventHelpers.getAllEvents()\n    expect(updatedEvents.length).toBeGreaterThanOrEqual(events.length)\n  })\n\n  test('should validate test environment requirements [E2E-CV-ENV-01]', async ({ page }) => {\n    // Test ID: E2E-CV-ENV-01\n    // PRD Reference: Test environment should meet Canvas requirements\n    \n    // Check browser capabilities\n    const browserSupport = await page.evaluate(() => {\n      return {\n        svg: !!document.createElementNS,\n        touch: 'ontouchstart' in window,\n        pointer: 'onpointerdown' in window,\n        wheel: 'onwheel' in window,\n        requestAnimationFrame: !!window.requestAnimationFrame,\n        performance: !!window.performance,\n      }\n    })\n    \n    // Essential features should be supported\n    expect(browserSupport.svg).toBe(true)\n    expect(browserSupport.wheel).toBe(true)\n    expect(browserSupport.requestAnimationFrame).toBe(true)\n    expect(browserSupport.performance).toBe(true)\n    \n    // Check viewport\n    const viewport = page.viewportSize()\n    expect(viewport!.width).toBeGreaterThanOrEqual(400)\n    expect(viewport!.height).toBeGreaterThanOrEqual(300)\n    \n    // Verify Canvas can be initialized\n    const canvasHelpers = new CanvasHelpers(page)\n    await canvasHelpers.initializeCanvas()\n    \n    const canvas = canvasHelpers.getCanvas()\n    await expect(canvas).toBeVisible()\n    \n    // Verify basic functionality\n    const viewBox = await canvasHelpers.getViewBox()\n    expect(viewBox.width).toBeGreaterThan(0)\n    expect(viewBox.height).toBeGreaterThan(0)\n  })\n})"
+    try {
+      await secondCanvasHelpers.initializeCanvas()
+      
+      // Both should work independently
+      const operations1 = canvasHelpers.panCanvas({ x: 50, y: 0 })
+      const operations2 = secondCanvasHelpers.panCanvas({ x: -50, y: 0 })
+      
+      await Promise.all([operations1, operations2])
+      
+      // Both should have valid states
+      const viewBox1 = await canvasHelpers.getViewBox()
+      const viewBox2 = await secondCanvasHelpers.getViewBox()
+      
+      expect(viewBox1.width).toBeGreaterThan(0)
+      expect(viewBox2.width).toBeGreaterThan(0)
+      
+      // States should be independent
+      expect(viewBox1.x).not.toBe(viewBox2.x)
+      
+    } finally {
+      await secondContext.close()
+    }
+  })
+
+  test('should maintain test data integrity [E2E-CV-INTEGRITY-01]', async ({ page }) => {
+    // Test ID: E2E-CV-INTEGRITY-01
+    // PRD Reference: Test fixtures should remain consistent
+    
+    const canvasHelpers = new CanvasHelpers(page)
+    const eventHelpers = new EventAPIHelpers(page)
+    
+    await canvasHelpers.initializeCanvas()
+    
+    // Verify fixture data consistency
+    const canvas = canvasHelpers.getCanvas()
+    await expect(canvas).toBeVisible()
+    
+    // Verify selectors still work
+    const canvasContainer = page.locator(CANVAS_SELECTORS.canvas)
+    const canvasSvg = page.locator(CANVAS_SELECTORS.canvasSvg)
+    
+    await expect(canvasContainer).toBeVisible()
+    await expect(canvasSvg).toBeVisible()
+    
+    // Verify API helpers work
+    const events = await eventHelpers.getAllEvents()
+    expect(Array.isArray(events)).toBe(true)
+    
+    // Perform operation and verify event recording
+    await canvasHelpers.panCanvas({ x: 25, y: 25 })
+    
+    // Events should be recordable
+    const updatedEvents = await eventHelpers.getAllEvents()
+    expect(updatedEvents.length).toBeGreaterThanOrEqual(events.length)
+  })
+
+  test('should validate test environment requirements [E2E-CV-ENV-01]', async ({ page }) => {
+    // Test ID: E2E-CV-ENV-01
+    // PRD Reference: Test environment should meet Canvas requirements
+    
+    // Check browser capabilities
+    const browserSupport = await page.evaluate(() => {
+      return {
+        svg: !!document.createElementNS,
+        touch: 'ontouchstart' in window,
+        pointer: 'onpointerdown' in window,
+        wheel: 'onwheel' in window,
+        requestAnimationFrame: !!window.requestAnimationFrame,
+        performance: !!window.performance,
+      }
+    })
+    
+    // Essential features should be supported
+    expect(browserSupport.svg).toBe(true)
+    expect(browserSupport.wheel).toBe(true)
+    expect(browserSupport.requestAnimationFrame).toBe(true)
+    expect(browserSupport.performance).toBe(true)
+    
+    // Check viewport
+    const viewport = page.viewportSize()
+    expect(viewport!.width).toBeGreaterThanOrEqual(400)
+    expect(viewport!.height).toBeGreaterThanOrEqual(300)
+    
+    // Verify Canvas can be initialized
+    const canvasHelpers = new CanvasHelpers(page)
+    await canvasHelpers.initializeCanvas()
+    
+    const canvas = canvasHelpers.getCanvas()
+    await expect(canvas).toBeVisible()
+    
+    // Verify basic functionality
+    const viewBox = await canvasHelpers.getViewBox()
+    expect(viewBox.width).toBeGreaterThan(0)
+    expect(viewBox.height).toBeGreaterThan(0)
+  })
+})

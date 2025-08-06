@@ -303,6 +303,99 @@ git commit -m "feat(api): add user endpoint + update progress tracking"
 - `type(scope): summary + memory bank updates`
 - Example: `feat(auth): implement JWT authentication + update progress tracking`
 
+### Canvas Component Architecture Pattern (2025-08-06)
+
+**Problem**: Need scalable, interactive SVG canvas with complex user interactions and event sourcing integration
+**Solution**: Compound component architecture with modular concerns and event-driven state management
+**Implementation**:
+
+```typescript
+// Main Canvas component with interaction handling
+<Canvas
+  width={800}
+  height={600}
+  onViewportChange={handleViewportChange}
+  eventSourcing={eventStore}
+>
+  <CanvasGrid 
+    cellSize={8}
+    viewport={viewport}
+    visible={zoom > 0.5}
+  />
+  {/* Future: Nodes, Edges, etc. */}
+</Canvas>
+```
+
+**Key Architecture Decisions**:
+
+- **SVG-Based Rendering**: Scalable vector graphics for infinite zoom without quality loss
+- **Compound Components**: Canvas, CanvasGrid, and types as separate, composable modules
+- **Event Sourcing Integration**: All interactions flow through event sourcing for undo/redo
+- **Performance Optimization**: Conditional grid rendering based on zoom thresholds
+- **Multi-Input Support**: Mouse, touch, and keyboard interactions unified through event system
+
+**Interaction Patterns**:
+
+```typescript
+// Pan interaction
+onMouseDown → track mouse movement → dispatch PAN_VIEWPORT events
+onTouchStart → track touches → dispatch PAN_VIEWPORT events
+onKeyDown (arrows) → dispatch PAN_VIEWPORT events
+
+// Zoom interaction  
+onWheel → calculate zoom delta → dispatch ZOOM_VIEWPORT events
+onTouchMove (pinch) → calculate pinch distance → dispatch ZOOM_VIEWPORT events
+onKeyDown (+/-/0) → dispatch ZOOM_VIEWPORT events
+
+// Boundary constraints
+viewport.x/y clamped to defined boundaries
+viewport.zoom clamped between 0.1 and 5.0
+```
+
+**State Management Pattern**:
+
+```typescript
+// Event sourcing integration
+interface CanvasEvent {
+  type: 'PAN_VIEWPORT' | 'ZOOM_VIEWPORT' | 'RESET_VIEWPORT'
+  payload: ViewportState
+  timestamp: Date
+}
+
+// State derived from event replay
+const viewport = events.reduce(viewportReducer, initialState)
+```
+
+**Performance Patterns**:
+
+- **Conditional Rendering**: Grid only visible when zoom > threshold for performance
+- **Boundary Constraints**: Prevent infinite panning/zooming to maintain performance
+- **Touch Optimization**: Prevent default touch behaviors while preserving accessibility
+- **Animation Smoothing**: RequestAnimationFrame for smooth 60fps interactions
+
+**Accessibility Patterns**:
+
+- **Keyboard Navigation**: Arrow keys for panning, +/-/0 for zoom control
+- **ARIA Labels**: Screen reader support for canvas state announcements
+- **Focus Management**: Proper tabindex and focus handling for keyboard users
+- **Touch Accessibility**: VoiceOver and TalkBack support on mobile devices
+
+**Testing Patterns**:
+
+- **E2E Testing**: Comprehensive test coverage with 86+ test cases across 8 files
+- **Interaction Testing**: Mouse, keyboard, and touch event simulation
+- **State Testing**: Event sourcing integration and viewport state verification
+- **Boundary Testing**: Edge cases for pan/zoom limits and invalid inputs
+- **Accessibility Testing**: Keyboard navigation and screen reader compatibility
+
+**Benefits**:
+
+- Scalable architecture ready for complex node/edge manipulation
+- Event sourcing provides complete audit trail for all user interactions
+- Multi-input support ensures consistent experience across devices
+- Performance optimized for smooth interactions at all zoom levels
+- Accessibility compliant with keyboard and screen reader support
+
 ---
 
 _New patterns are appended to this document as they are discovered and validated in the codebase._

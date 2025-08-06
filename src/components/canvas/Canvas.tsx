@@ -827,19 +827,28 @@ const Canvas: React.FC<CanvasProps> = ({
   const displayScale = optimisticScale || canvasState.scale
   const viewBoxString = `${displayViewBox.x} ${displayViewBox.y} ${displayViewBox.width} ${displayViewBox.height}`
   
-  // Clear optimistic state when canvasState updates
+  // Don't clear optimistic state too aggressively - only when event sourcing catches up
   useEffect(() => {
-    if (optimisticViewBox && (
-      Math.abs(canvasState.viewBox.x - optimisticViewBox.x) < 1 &&
-      Math.abs(canvasState.viewBox.y - optimisticViewBox.y) < 1
-    )) {
-      setOptimisticViewBox(null)
+    if (optimisticViewBox) {
+      const timerId = setTimeout(() => {
+        // Clear optimistic state after a delay to allow event sourcing to catch up
+        if (Math.abs(canvasState.viewBox.x - optimisticViewBox.x) < 1 &&
+            Math.abs(canvasState.viewBox.y - optimisticViewBox.y) < 1) {
+          setOptimisticViewBox(null)
+        }
+      }, 500)
+      return () => clearTimeout(timerId)
     }
   }, [canvasState.viewBox, optimisticViewBox])
   
   useEffect(() => {
-    if (optimisticScale && Math.abs(canvasState.scale - optimisticScale) < 0.01) {
-      setOptimisticScale(null)
+    if (optimisticScale) {
+      const timerId = setTimeout(() => {
+        if (Math.abs(canvasState.scale - optimisticScale) < 0.01) {
+          setOptimisticScale(null)
+        }
+      }, 500)
+      return () => clearTimeout(timerId)
     }
   }, [canvasState.scale, optimisticScale])
 
