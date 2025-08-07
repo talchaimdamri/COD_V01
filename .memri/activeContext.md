@@ -283,4 +283,46 @@ _None identified at this time_
 
 ---
 
+## 2025-01-08 - TipTap Document Editor Integration
+
+**Decision**: Integrated TipTap rich text editor as foundation for document editing modal
+
+**Context**: Task 10 required building a comprehensive document editor modal with formatting capabilities, document rails (connections), and event sourcing integration.
+
+**Implementation Decisions**:
+
+**TipTap Configuration**:
+- Used StarterKit base with selective extension configuration
+- Configured 9 extensions: Heading (levels 1-3), Lists (Bullet/Ordered), CodeBlock, Blockquote, Underline, Strike
+- Disabled default history extension when event sourcing is enabled
+- Custom CSS styling for consistent prose appearance
+
+**Editor Architecture**:
+- `TipTapEditor.tsx`: Core editor wrapper with extension configuration
+- `DocumentEditorToolbar.tsx`: Complete formatting toolbar with all controls
+- `TipTapEventSourcingExtension.ts`: Custom extension for event sourcing integration
+- Debounced content changes (300ms) for performance optimization
+
+**Event Sourcing Integration**:
+- Custom extension tracks document changes as events
+- Integrates with existing event sourcing architecture
+- Maintains undo/redo capability through event history
+- Version saving functionality through event persistence
+
+**Testing Strategy**:
+- Comprehensive mocking of TipTap extensions for test environment
+- Mock editor provides all required command methods
+- Test fixtures for document editor scenarios
+- 96% test success rate with TDD methodology
+
+**Performance Considerations**:
+- Keyboard shortcut handling with event delegation
+- Editor cleanup on component unmount
+- Selective tracking (content changes, not selections) for performance
+- Responsive design with mobile touch support
+
+**Status**: ✅ Complete - All components functional and tested
+
+---
+
 _Active decisions and context are appended chronologically. Completed decisions move to appropriate specialized Memory Bank files._

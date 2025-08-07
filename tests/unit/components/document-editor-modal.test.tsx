@@ -35,27 +35,57 @@ vi.mock('@tiptap/react', () => ({
 }))
 
 vi.mock('@tiptap/starter-kit', () => ({
-  default: vi.fn(() => ({ name: 'StarterKit' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'StarterKit' })),
+  },
 }))
 
 vi.mock('@tiptap/extension-heading', () => ({
-  default: vi.fn(() => ({ name: 'Heading' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'Heading' })),
+  },
 }))
 
 vi.mock('@tiptap/extension-list-item', () => ({
-  default: vi.fn(() => ({ name: 'ListItem' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'ListItem' })),
+  },
 }))
 
 vi.mock('@tiptap/extension-bullet-list', () => ({
-  default: vi.fn(() => ({ name: 'BulletList' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'BulletList' })),
+  },
 }))
 
 vi.mock('@tiptap/extension-ordered-list', () => ({
-  default: vi.fn(() => ({ name: 'OrderedList' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'OrderedList' })),
+  },
 }))
 
 vi.mock('@tiptap/extension-code-block', () => ({
-  default: vi.fn(() => ({ name: 'CodeBlock' })),
+  default: {
+    configure: vi.fn(() => ({ name: 'CodeBlock' })),
+  },
+}))
+
+vi.mock('@tiptap/extension-blockquote', () => ({
+  default: {
+    configure: vi.fn(() => ({ name: 'Blockquote' })),
+  },
+}))
+
+vi.mock('@tiptap/extension-underline', () => ({
+  default: {
+    configure: vi.fn(() => ({ name: 'Underline' })),
+  },
+}))
+
+vi.mock('@tiptap/extension-strike', () => ({
+  default: {
+    configure: vi.fn(() => ({ name: 'Strike' })),
+  },
 }))
 
 // Test fixtures
@@ -67,7 +97,7 @@ import {
   DOCUMENT_EDITOR_CONFIG,
 } from '../../fixtures/document-editor'
 
-const mockTipTap = vi.mocked(require('@tiptap/react'))
+const mockTipTap = await import('@tiptap/react') as any
 
 // Mock event sourcing
 vi.mock('../../../src/lib/eventSourcing', () => ({
@@ -106,10 +136,11 @@ describe('DocumentEditorModal Component', () => {
 
   let mockUseDocumentEventSourcing: any
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     // Get the mocked function
-    mockUseDocumentEventSourcing = vi.mocked(require('../../../src/lib/eventSourcing').useDocumentEventSourcing)
+    const eventSourcingModule = await import('../../../src/lib/eventSourcing')
+    mockUseDocumentEventSourcing = vi.mocked(eventSourcingModule.useDocumentEventSourcing)
   })
 
   afterEach(() => {
@@ -313,7 +344,7 @@ describe('TipTapEditor Component', () => {
       destroy: vi.fn(),
     }
     
-    mockTipTap.useEditor.mockReturnValue(mockEditor)
+    vi.mocked(mockTipTap.useEditor).mockReturnValue(mockEditor)
   })
 
   test('should initialize with all required extensions [UNIT-DOC-EDITOR-01]', () => {
@@ -323,7 +354,7 @@ describe('TipTapEditor Component', () => {
     render(<TipTapEditor {...defaultProps} />)
     
     // Verify useEditor is called with correct extensions
-    expect(mockTipTap.useEditor).toHaveBeenCalledWith(
+    expect(vi.mocked(mockTipTap.useEditor)).toHaveBeenCalledWith(
       expect.objectContaining({
         extensions: expect.arrayContaining([
           expect.objectContaining({ name: 'StarterKit' }),
@@ -639,13 +670,13 @@ describe('DocumentRails Component', () => {
     
     render(<DocumentRails {...defaultProps} onConnect={onConnect} onDisconnect={onDisconnect} />)
     
-    // Test connect action
-    const connectButton = screen.getByTestId('rail-item-connect')
+    // Test connect action - use the first indexed connect button
+    const connectButton = screen.getByTestId('rail-item-connect-0')
     await userEvent.click(connectButton)
     expect(onConnect).toHaveBeenCalled()
     
-    // Test disconnect action (if available)
-    const disconnectButton = screen.queryByTestId('rail-item-disconnect')
+    // Test disconnect action (if available) - use the first indexed disconnect button
+    const disconnectButton = screen.queryByTestId('rail-item-disconnect-0')
     if (disconnectButton) {
       await userEvent.click(disconnectButton)
       expect(onDisconnect).toHaveBeenCalled()

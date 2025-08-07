@@ -198,9 +198,10 @@ describe('DocumentEditorModal Simple Tests', () => {
     expect(editorContent).toHaveAttribute('contenteditable', 'true')
   })
 
-  test('should show loading state', () => {
+  test('should show loading state', async () => {
     // Mock loading state
-    vi.mocked(require('../../../src/lib/eventSourcing').useDocumentEventSourcing).mockReturnValueOnce({
+    const eventSourcingModule = await import('../../../src/lib/eventSourcing')
+    vi.mocked(eventSourcingModule.useDocumentEventSourcing).mockReturnValueOnce({
       documentState: null,
       eventHistory: [],
       currentEventIndex: -1,
@@ -223,9 +224,10 @@ describe('DocumentEditorModal Simple Tests', () => {
     expect(screen.getByText('Loading document...')).toBeInTheDocument()
   })
 
-  test('should show error state', () => {
+  test('should show error state', async () => {
     // Mock error state
-    vi.mocked(require('../../../src/lib/eventSourcing').useDocumentEventSourcing).mockReturnValueOnce({
+    const eventSourcingModule = await import('../../../src/lib/eventSourcing')
+    vi.mocked(eventSourcingModule.useDocumentEventSourcing).mockReturnValueOnce({
       documentState: null,
       eventHistory: [],
       currentEventIndex: -1,

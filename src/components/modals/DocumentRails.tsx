@@ -89,7 +89,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
     )
   }
 
-  const renderRailItem = (connection: RailConnection, isFirst: boolean = false) => {
+  const renderRailItem = (connection: RailConnection, index: number = 0, isFirst: boolean = false) => {
     const isHovered = hoveredItem === connection.id
     const connectionType = getConnectionType(connection)
     
@@ -133,7 +133,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
             </div>
             
             <div 
-              data-testid="rail-item-preview"
+              data-testid={`rail-item-preview-${index}`}
               className="text-xs text-gray-600 mt-1 line-clamp-2 leading-relaxed"
             >
               {truncateText(connection.preview, 120)}
@@ -163,7 +163,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
                 ${isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
               `}>
                 <button
-                  data-testid="rail-item-connect"
+                  data-testid={`rail-item-connect-${index}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onConnect(documentId, connection.id, connectionType)
@@ -175,7 +175,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
                   <Link2 size={12} />
                 </button>
                 <button
-                  data-testid="rail-item-disconnect"
+                  data-testid={`rail-item-disconnect-${index}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onDisconnect(documentId, connection.id, connectionType)
@@ -330,7 +330,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
                 {isLoading ? (
                   renderLoadingState()
                 ) : upstream.length > 0 ? (
-                  upstream.map((connection, index) => renderRailItem(connection, index === 0))
+                  upstream.map((connection, index) => renderRailItem(connection, index, index === 0))
                 ) : (
                   renderEmptyState('upstream')
                 )}
@@ -382,7 +382,7 @@ const DocumentRails: React.FC<DocumentRailsProps> = ({
                 {isLoading ? (
                   renderLoadingState()
                 ) : downstream.length > 0 ? (
-                  downstream.map((connection, index) => renderRailItem(connection, index === 0 && upstream.length === 0))
+                  downstream.map((connection, index) => renderRailItem(connection, index, index === 0 && upstream.length === 0))
                 ) : (
                   renderEmptyState('downstream')
                 )}

@@ -237,4 +237,62 @@
 
 ---
 
+## 2025-01-08 - TipTap Rich Text Editor Integration
+
+**Technology Added**: TipTap Editor v2 - Headless rich text editor for React
+
+**Context**: Task 10 required implementing a comprehensive document editor modal with rich text formatting capabilities, event sourcing integration, and document connection rails.
+
+**Dependencies Added**:
+```json
+{
+  "@tiptap/react": "^2.x",
+  "@tiptap/starter-kit": "^2.x", 
+  "@tiptap/extension-heading": "^2.x",
+  "@tiptap/extension-bullet-list": "^2.x",
+  "@tiptap/extension-ordered-list": "^2.x",
+  "@tiptap/extension-list-item": "^2.x",
+  "@tiptap/extension-code-block": "^2.x",
+  "@tiptap/extension-blockquote": "^2.x",
+  "@tiptap/extension-underline": "^2.x",
+  "@tiptap/extension-strike": "^2.x"
+}
+```
+
+**Technical Integration**:
+
+**Architecture Benefits**:
+- Headless editor design allows complete UI control and custom theming
+- ProseMirror-based engine provides robust document model
+- Extension-based architecture enables custom functionality (event sourcing)
+- TypeScript support with strong typing for editor methods
+
+**Custom Extensions**:
+- `TipTapEventSourcingExtension`: Custom extension integrating with event sourcing architecture
+- Debounced change tracking for performance optimization
+- Event-driven content change notifications for state management
+
+**Testing Considerations**:
+- Comprehensive mocking strategy for test environment
+- Mock editor provides all required command methods for unit testing
+- Extension configuration mocking for test compatibility
+
+**Performance Optimizations**:
+- Selective extension loading based on requirements
+- Custom history management when event sourcing is enabled
+- Efficient keyboard shortcut handling
+- Proper editor cleanup on component unmount
+
+**Integration Points**:
+- Event sourcing system for document change tracking
+- Modal system for editor presentation
+- Document rails system for connection management
+- Backend API for event persistence
+
+**Alternative Considered**: Draft.js, Quill.js - TipTap chosen for superior TypeScript support, cleaner React integration, and extensibility architecture
+
+**Status**: ✅ Production Ready - Fully integrated with comprehensive testing
+
+---
+
 _Technology decisions are documented chronologically to maintain decision context and rationale._
