@@ -109,9 +109,20 @@ export const DOCUMENT_EDITOR_SELECTORS = {
   
   // Version controls
   versionHistory: '[data-testid="version-history"]',
+  versionHistoryPanel: '[data-testid="version-history-panel"]',
   versionItem: '[data-testid="version-item"]',
   versionRestore: '[data-testid="version-restore"]',
   versionCompare: '[data-testid="version-compare"]',
+  versionDiff: '[data-testid="version-diff"]',
+  versionTimestamp: '[data-testid="version-timestamp"]',
+  versionDescription: '[data-testid="version-description"]',
+  versionAuthor: '[data-testid="version-author"]',
+  versionWordCount: '[data-testid="version-word-count"]',
+  versionCharCount: '[data-testid="version-char-count"]',
+  versionToggle: '[data-testid="version-toggle"]',
+  diffViewer: '[data-testid="diff-viewer"]',
+  diffSideBySide: '[data-testid="diff-side-by-side"]',
+  diffUnified: '[data-testid="diff-unified"]',
   
   // Status indicators
   savingIndicator: '[data-testid="saving-indicator"]',
@@ -203,6 +214,8 @@ export const mockVersionHistory = {
       timestamp: new Date('2024-01-01T10:00:00.000Z'),
       author: 'test-user',
       description: 'Initial document creation',
+      wordCount: 2,
+      charCount: 25,
     },
     {
       id: 'version-2', 
@@ -212,6 +225,8 @@ export const mockVersionHistory = {
       timestamp: new Date('2024-01-01T12:00:00.000Z'),
       author: 'test-user',
       description: 'Added main heading structure',
+      wordCount: 4,
+      charCount: 48,
     },
     {
       id: 'version-3',
@@ -221,8 +236,107 @@ export const mockVersionHistory = {
       timestamp: new Date('2024-01-01T14:30:00.000Z'),
       author: 'test-user',
       description: 'Added lists and code blocks',
+      wordCount: 25,
+      charCount: 450,
+    },
+    {
+      id: 'version-4',
+      documentId: 'doc-complex',
+      version: 4,
+      content: `${mockDocuments.complexDocument.content}<p><strong>Bold conclusion</strong> with final thoughts.</p>`,
+      timestamp: new Date('2024-01-01T16:15:00.000Z'),
+      author: 'test-user',
+      description: 'Added conclusion paragraph',
+      wordCount: 30,
+      charCount: 510,
     },
   ],
+} as const
+
+// Extended version history for performance testing
+export const mockLargeVersionHistory = {
+  versions: Array.from({ length: 150 }, (_, i) => ({
+    id: `version-${i + 1}`,
+    documentId: 'doc-performance-test',
+    version: i + 1,
+    content: `<p>Version ${i + 1} content with some changes and modifications to test performance.</p>`.repeat(Math.floor(i / 10) + 1),
+    timestamp: new Date(Date.now() - (150 - i) * 60000), // 1 minute intervals
+    author: i % 3 === 0 ? 'test-user-1' : i % 3 === 1 ? 'test-user-2' : 'test-user-3',
+    description: `Version ${i + 1} - ${i % 5 === 0 ? 'Major update' : i % 3 === 0 ? 'Bug fix' : 'Minor changes'}`,
+    wordCount: 10 + i * 2,
+    charCount: 80 + i * 15,
+  })),
+} as const
+
+// Version diff test data
+export const mockVersionDiffs = {
+  simpleTextChange: {
+    from: '<p>Hello world</p>',
+    to: '<p>Hello beautiful world</p>',
+    expectedDiff: {
+      additions: ['beautiful '],
+      deletions: [],
+      changes: [
+        { type: 'unchanged', content: 'Hello ' },
+        { type: 'addition', content: 'beautiful ' },
+        { type: 'unchanged', content: 'world' },
+      ],
+    },
+  },
+  
+  formattingChange: {
+    from: '<p>Simple text</p>',
+    to: '<p><strong>Simple</strong> <em>text</em></p>',
+    expectedDiff: {
+      additions: ['<strong>', '</strong>', '<em>', '</em>'],
+      deletions: [],
+      changes: [
+        { type: 'addition', content: '<strong>' },
+        { type: 'unchanged', content: 'Simple' },
+        { type: 'addition', content: '</strong>' },
+        { type: 'unchanged', content: ' ' },
+        { type: 'addition', content: '<em>' },
+        { type: 'unchanged', content: 'text' },
+        { type: 'addition', content: '</em>' },
+      ],
+    },
+  },
+  
+  structuralChange: {
+    from: '<p>Single paragraph</p>',
+    to: '<h1>Main Title</h1><p>Content paragraph</p>',
+    expectedDiff: {
+      additions: ['<h1>Main Title</h1>', '<p>Content paragraph</p>'],
+      deletions: ['<p>Single paragraph</p>'],
+      changes: [
+        { type: 'deletion', content: '<p>Single paragraph</p>' },
+        { type: 'addition', content: '<h1>Main Title</h1>' },
+        { type: 'addition', content: '<p>Content paragraph</p>' },
+      ],
+    },
+  },
+  
+  complexChange: {
+    from: '<h1>Old Title</h1><p>First paragraph</p><ul><li>Item 1</li></ul>',
+    to: '<h1>New Title</h1><p>Updated first paragraph</p><p>Second paragraph</p><ul><li>Item 1</li><li>Item 2</li></ul>',
+    expectedDiff: {
+      additions: ['New ', 'Updated ', '<p>Second paragraph</p>', '<li>Item 2</li>'],
+      deletions: ['Old '],
+      changes: [
+        { type: 'unchanged', content: '<h1>' },
+        { type: 'deletion', content: 'Old ' },
+        { type: 'addition', content: 'New ' },
+        { type: 'unchanged', content: 'Title</h1>' },
+        { type: 'unchanged', content: '<p>' },
+        { type: 'addition', content: 'Updated ' },
+        { type: 'unchanged', content: 'first paragraph</p>' },
+        { type: 'addition', content: '<p>Second paragraph</p>' },
+        { type: 'unchanged', content: '<ul><li>Item 1</li>' },
+        { type: 'addition', content: '<li>Item 2</li>' },
+        { type: 'unchanged', content: '</ul>' },
+      ],
+    },
+  },
 } as const
 
 // Mock rail connection data
@@ -423,6 +537,11 @@ export const editorPerformanceThresholds = {
   modalResize: 200,       // Modal resize time (ms)
   save: 1000,             // Save operation time (ms)
   railLoad: 400,          // Rail content loading (ms)
+  versionHistoryLoad: 800, // Version history panel loading (ms)
+  versionRestore: 600,    // Version restoration time (ms)
+  undoRedo: 100,          // Undo/redo operation time (ms)
+  diffCalculation: 300,   // Diff calculation time (ms)
+  largeHistoryRender: 1500, // Large version history rendering (ms)
 } as const
 
 // Modal state configurations
@@ -520,7 +639,78 @@ export const editorTestUtils = {
       timestamp: new Date(Date.now() - (count - i) * 60000), // 1 minute intervals
       author: 'test-user',
       description: `Version ${i + 1} changes`,
+      wordCount: 3 + i,
+      charCount: 25 + i * 5,
     }))
+  },
+
+  /**
+   * Calculate differences between two HTML content strings
+   */
+  calculateContentDiff: (fromContent: string, toContent: string) => {
+    // Simple diff calculation for testing (in real app, use proper diff library)
+    const additions = []
+    const deletions = []
+    
+    if (fromContent !== toContent) {
+      if (toContent.length > fromContent.length) {
+        const addition = toContent.substring(fromContent.length)
+        additions.push(addition)
+      } else if (fromContent.length > toContent.length) {
+        const deletion = fromContent.substring(toContent.length)
+        deletions.push(deletion)
+      }
+    }
+    
+    return {
+      additions,
+      deletions,
+      hasChanges: fromContent !== toContent,
+      changeType: toContent.length > fromContent.length ? 'addition' : 
+                  fromContent.length > toContent.length ? 'deletion' : 'modification',
+    }
+  },
+
+  /**
+   * Generate event history for undo/redo testing
+   */
+  generateEventHistory: (documentId: string, eventCount: number) => {
+    const events = []
+    let content = '<p>Initial content</p>'
+    
+    for (let i = 0; i < eventCount; i++) {
+      const previousContent = content
+      content = `<p>Content after change ${i + 1}</p>`
+      
+      events.push({
+        type: 'DOCUMENT_CONTENT_CHANGE',
+        payload: {
+          documentId,
+          previousContent,
+          newContent: content,
+          changeType: 'replace',
+          changeSize: Math.abs(content.length - previousContent.length),
+          contentLength: content.length,
+        },
+        timestamp: new Date(Date.now() - (eventCount - i) * 10000), // 10 second intervals
+        userId: 'test-user',
+      })
+    }
+    
+    return events
+  },
+
+  /**
+   * Format timestamp for version history display
+   */
+  formatVersionTimestamp: (timestamp: Date) => {
+    return timestamp.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   },
 } as const
 
