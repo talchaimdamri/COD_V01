@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react'
 import CanvasGrid from './CanvasGrid'
+import { DocumentNode, AgentNode } from './nodes'
 import { 
   CanvasProps, 
   Position, 
@@ -937,7 +938,68 @@ const Canvas: React.FC<CanvasProps> = ({
           const displayPosition = isDraggedNode && localDragState.currentPosition 
             ? localDragState.currentPosition 
             : node.position
-            
+          
+          // Create visual state for node
+          const visualState = {
+            selected: node.id === canvasState.selectedNodeId,
+            dragging: isDraggedNode,
+            hovered: false, // TODO: Add hover state tracking
+            focused: false  // TODO: Add focus state tracking
+          }
+          
+          // Create props based on node type
+          const commonProps = {
+            id: node.id,
+            position: displayPosition,
+            title: node.title || `${node.type} ${node.id}`,
+            visualState,
+            onSelect: (nodeId: string) => {
+              selectElement(nodeId)
+              onNodeSelect?.(nodeId)
+            },
+            onDragStart: (nodeId: string, pos: Position, startPos: Position) => {
+              // Already handled by Canvas drag logic
+            },
+            onDragMove: (nodeId: string, pos: Position, delta: any) => {
+              // Already handled by Canvas drag logic  
+            },
+            onDragEnd: (nodeId: string, pos: Position, startPos: Position) => {
+              // Already handled by Canvas drag logic
+            }
+          }
+          
+          if (node.type === 'document') {
+            return (
+              <DocumentNode
+                key={node.id}
+                {...commonProps}
+                type="document"
+                data={{
+                  status: 'draft', // TODO: Get from node data
+                  content: node.content,
+                  wordCount: node.wordCount,
+                  lastModified: node.lastModified
+                }}
+              />
+            )
+          } else if (node.type === 'agent') {
+            return (
+              <AgentNode
+                key={node.id}
+                {...commonProps}
+                type="agent"
+                data={{
+                  model: node.model || 'gpt-4',
+                  status: 'idle', // TODO: Get from node data
+                  prompt: node.prompt,
+                  temperature: node.temperature,
+                  maxTokens: node.maxTokens
+                }}
+              />
+            )
+          }
+          
+          // Fallback for unknown node types
           return (
             <g
               key={node.id}
@@ -953,7 +1015,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 cx={0}
                 cy={0}
                 r={CANVAS_CONFIG.NODE_RADIUS}
-                fill={node.type === 'document' ? '#8b5cf6' : '#22c55e'}
+                fill="#6b7280"
                 stroke={node.id === canvasState.selectedNodeId ? '#1e40af' : 'transparent'}
                 strokeWidth={3}
                 className="transition-all duration-200"
@@ -967,7 +1029,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 fontWeight="500"
                 pointerEvents="none"
               >
-                {node.type === 'document' ? 'Doc' : 'AI'}
+                ?
               </text>
             </g>
           )
