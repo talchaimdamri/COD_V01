@@ -40,6 +40,9 @@ const CanvasEventTypes = {
   ADD_NODE: 'ADD_NODE',
   MOVE_NODE: 'MOVE_NODE',
   DELETE_NODE: 'DELETE_NODE',
+  CREATE_EDGE: 'CREATE_EDGE',
+  DELETE_EDGE: 'DELETE_EDGE',
+  UPDATE_EDGE_PATH: 'UPDATE_EDGE_PATH',
   SELECT_ELEMENT: 'SELECT_ELEMENT',
   PAN_CANVAS: 'PAN_CANVAS',
   ZOOM_CANVAS: 'ZOOM_CANVAS',
@@ -118,6 +121,105 @@ export const SelectElementEventSchema = EventSchema.extend({
   }).describe('Payload for element selection changes'),
 }).describe('Event fired when an element is selected or deselected')
 
+// Edge-specific validation schemas
+const EdgeIdSchema = z.string()
+  .min(1, 'Edge ID cannot be empty')
+  .describe('Unique identifier for a canvas edge')
+
+export const ConnectionPointSchema = z.object({
+  nodeId: NodeIdSchema,
+  anchorId: z.string().min(1, 'Anchor ID cannot be empty').describe('Connection anchor identifier'),
+  position: PositionSchema.describe('Absolute position of connection point'),
+}).describe('Connection point for edge endpoints')
+
+export const EdgeTypeSchema = z.enum(['bezier', 'straight', 'orthogonal'], {
+  errorMap: () => ({ message: 'Edge type must be "bezier", "straight", or "orthogonal"' })
+}).describe('Type of edge rendering')
+
+export const EdgeStyleSchema = z.object({
+  stroke: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Stroke must be a valid hex color').default('#666666'),
+  strokeWidth: z.number().positive('Stroke width must be positive').default(2),
+  strokeDasharray: z.string().optional().describe('SVG dash pattern (e.g., "5,5")'),
+  opacity: z.number().min(0).max(1).default(1).describe('Edge opacity'),
+  markerStart: z.string().optional().describe('SVG marker ID for start arrow'),
+  markerEnd: z.string().optional().describe('SVG marker ID for end arrow'),
+}).describe('Edge visual styling properties')
+
+export const EdgeLabelSchema = z.object({
+  text: z.string().min(1, 'Label text cannot be empty'),
+  position: z.number().min(0).max(1).default(0.5).describe('Position along edge (0=start, 1=end)'),
+  offset: z.number().default(10).describe('Perpendicular offset from edge line'),
+  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#ffffff'),
+  textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#000000'),
+  fontSize: z.number().positive().default(12),
+  padding: z.number().min(0).default(4),
+}).describe('Edge text label configuration')
+
+export const BezierControlPointsSchema = z.object({
+  cp1: PositionSchema.describe('First control point for bezier curve'),
+  cp2: PositionSchema.describe('Second control point for bezier curve'),
+}).describe('Bezier curve control points')
+
+export const EdgePathSchema = z.object({
+  type: EdgeTypeSchema,
+  start: PositionSchema.describe('Edge start position'),
+  end: PositionSchema.describe('Edge end position'),
+  controlPoints: BezierControlPointsSchema.optional().describe('Control points for bezier curves'),
+  waypoints: z.array(PositionSchema).optional().describe('Waypoints for orthogonal routing'),
+}).describe('Edge path definition for rendering')
+
+/**
+ * CREATE_EDGE Event - Creates a new edge connection between nodes
+ */
+export const CreateEdgeEventSchema = EventSchema.extend({
+  type: z.literal(CanvasEventTypes.CREATE_EDGE),
+  payload: z.object({
+    edgeId: EdgeIdSchema,
+    sourceConnection: ConnectionPointSchema.describe('Source node connection point'),
+    targetConnection: ConnectionPointSchema.describe('Target node connection point'),
+    edgeType: EdgeTypeSchema.default('bezier'),
+    style: EdgeStyleSchema.optional(),
+    label: EdgeLabelSchema.optional(),
+    data: z.record(z.any())
+      .optional()
+      .describe('Additional edge-specific metadata'),
+  }).describe('Payload for creating a new edge connection'),
+}).describe('Event fired when a new edge is created between nodes')
+
+/**
+ * DELETE_EDGE Event - Removes an edge from canvas
+ */
+export const DeleteEdgeEventSchema = EventSchema.extend({
+  type: z.literal(CanvasEventTypes.DELETE_EDGE),
+  payload: z.object({
+    edgeId: EdgeIdSchema,
+    sourceConnection: ConnectionPointSchema.optional().describe('Source connection for undo purposes'),
+    targetConnection: ConnectionPointSchema.optional().describe('Target connection for undo purposes'),
+    edgeType: EdgeTypeSchema.optional().describe('Edge type for undo purposes'),
+    style: EdgeStyleSchema.optional().describe('Edge style for undo purposes'),
+    data: z.record(z.any())
+      .optional()
+      .describe('Edge data for undo purposes'),
+  }).describe('Payload for deleting an edge'),
+}).describe('Event fired when an edge is removed from the canvas')
+
+/**
+ * UPDATE_EDGE_PATH Event - Updates edge routing and path
+ */
+export const UpdateEdgePathEventSchema = EventSchema.extend({
+  type: z.literal(CanvasEventTypes.UPDATE_EDGE_PATH),
+  payload: z.object({
+    edgeId: EdgeIdSchema,
+    fromPath: EdgePathSchema.describe('Previous edge path'),
+    toPath: EdgePathSchema.describe('New edge path'),
+    reason: z.enum(['node_moved', 'manual_edit', 'routing_update'])
+      .describe('Why the path was updated'),
+    preserveControlPoints: z.boolean()
+      .default(false)
+      .describe('Whether to preserve manual control point adjustments'),
+  }).describe('Payload for updating edge path and routing'),
+}).describe('Event fired when an edge path or routing is updated')
+
 /**
  * PAN_CANVAS Event - Updates canvas viewport position
  */
@@ -176,6 +278,9 @@ export const CanvasEventSchema = z.union([
   AddNodeEventSchema,
   MoveNodeEventSchema,
   DeleteNodeEventSchema,
+  CreateEdgeEventSchema,
+  DeleteEdgeEventSchema,
+  UpdateEdgePathEventSchema,
   SelectElementEventSchema,
   PanCanvasEventSchema,
   ZoomCanvasEventSchema,
@@ -191,6 +296,9 @@ export const CanvasEventTypeSchema = z.enum([
   CanvasEventTypes.ADD_NODE,
   CanvasEventTypes.MOVE_NODE,
   CanvasEventTypes.DELETE_NODE,
+  CanvasEventTypes.CREATE_EDGE,
+  CanvasEventTypes.DELETE_EDGE,
+  CanvasEventTypes.UPDATE_EDGE_PATH,
   CanvasEventTypes.SELECT_ELEMENT,
   CanvasEventTypes.PAN_CANVAS,
   CanvasEventTypes.ZOOM_CANVAS,
@@ -203,9 +311,20 @@ export type NodeType = z.infer<typeof NodeTypeSchema>
 export type ViewBox = z.infer<typeof ViewBoxSchema>
 export type ZoomLevel = z.infer<typeof ZoomLevelSchema>
 
+// Edge type exports
+export type ConnectionPoint = z.infer<typeof ConnectionPointSchema>
+export type EdgeType = z.infer<typeof EdgeTypeSchema>
+export type EdgeStyle = z.infer<typeof EdgeStyleSchema>
+export type EdgeLabel = z.infer<typeof EdgeLabelSchema>
+export type BezierControlPoints = z.infer<typeof BezierControlPointsSchema>
+export type EdgePath = z.infer<typeof EdgePathSchema>
+
 export type AddNodeEvent = z.infer<typeof AddNodeEventSchema>
 export type MoveNodeEvent = z.infer<typeof MoveNodeEventSchema>
 export type DeleteNodeEvent = z.infer<typeof DeleteNodeEventSchema>
+export type CreateEdgeEvent = z.infer<typeof CreateEdgeEventSchema>
+export type DeleteEdgeEvent = z.infer<typeof DeleteEdgeEventSchema>
+export type UpdateEdgePathEvent = z.infer<typeof UpdateEdgePathEventSchema>
 export type SelectElementEvent = z.infer<typeof SelectElementEventSchema>
 export type PanCanvasEvent = z.infer<typeof PanCanvasEventSchema>
 export type ZoomCanvasEvent = z.infer<typeof ZoomCanvasEventSchema>
@@ -229,6 +348,16 @@ export const CANVAS_LIMITS = {
     MAX_TITLE_LENGTH: 100,
     MIN_RADIUS: 20,
     MAX_RADIUS: 50,
+  },
+  EDGE: {
+    MIN_STROKE_WIDTH: 1,
+    MAX_STROKE_WIDTH: 10,
+    DEFAULT_STROKE_WIDTH: 2,
+    MIN_LABEL_FONT_SIZE: 8,
+    MAX_LABEL_FONT_SIZE: 24,
+    DEFAULT_LABEL_FONT_SIZE: 12,
+    MAX_CONTROL_POINT_DISTANCE: 500,
+    MIN_EDGE_LENGTH: 10,
   },
   VIEWPORT: {
     MIN_WIDTH: 100,
@@ -284,6 +413,50 @@ export const CanvasEventUtils = {
    */
   isCanvasEvent: (event: any): event is CanvasEvent => {
     return CanvasEventTypeSchema.safeParse(event?.type).success
+  },
+
+  /**
+   * Validates edge path and calculates total length
+   */
+  calculateEdgeLength: (path: EdgePath): number => {
+    if (path.type === 'straight') {
+      return CanvasEventUtils.distance(path.start, path.end)
+    }
+    // Simplified length calculation for curves - could be enhanced with proper curve math
+    return CanvasEventUtils.distance(path.start, path.end) * 1.2
+  },
+
+  /**
+   * Validates connection point positions are within reasonable bounds
+   */
+  isValidConnectionPoint: (connection: ConnectionPoint): boolean => {
+    return CanvasEventUtils.isValidPosition(connection.position) && 
+           connection.nodeId.length > 0 && 
+           connection.anchorId.length > 0
+  },
+
+  /**
+   * Generates default bezier control points for edge path
+   */
+  generateBezierControlPoints: (start: Position, end: Position): BezierControlPoints => {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const offset = Math.min(Math.abs(dx), Math.abs(dy)) * 0.5
+    
+    return {
+      cp1: { x: start.x + offset, y: start.y },
+      cp2: { x: end.x - offset, y: end.y }
+    }
+  },
+
+  /**
+   * Type guard to check if an event is an edge event
+   */
+  isEdgeEvent: (event: any): event is CreateEdgeEvent | DeleteEdgeEvent | UpdateEdgePathEvent => {
+    const type = event?.type
+    return type === CanvasEventTypes.CREATE_EDGE || 
+           type === CanvasEventTypes.DELETE_EDGE || 
+           type === CanvasEventTypes.UPDATE_EDGE_PATH
   },
 } as const
 
@@ -369,6 +542,96 @@ export const CanvasEventFactory = {
         toViewBox,
         zoomCenter: options.zoomCenter,
         zoomDelta: options.zoomDelta,
+      },
+      timestamp: options.timestamp || new Date(),
+      userId: options.userId,
+    })
+  },
+
+  /**
+   * Creates a CREATE_EDGE event
+   */
+  createCreateEdgeEvent: (
+    edgeId: string,
+    sourceConnection: ConnectionPoint,
+    targetConnection: ConnectionPoint,
+    options: {
+      edgeType?: EdgeType
+      style?: EdgeStyle
+      label?: EdgeLabel
+      data?: Record<string, any>
+      userId?: string
+      timestamp?: Date
+    } = {}
+  ): CreateEdgeEvent => {
+    return CreateEdgeEventSchema.parse({
+      type: CanvasEventTypes.CREATE_EDGE,
+      payload: {
+        edgeId,
+        sourceConnection,
+        targetConnection,
+        edgeType: options.edgeType || 'bezier',
+        style: options.style,
+        label: options.label,
+        data: options.data,
+      },
+      timestamp: options.timestamp || new Date(),
+      userId: options.userId,
+    })
+  },
+
+  /**
+   * Creates a DELETE_EDGE event
+   */
+  createDeleteEdgeEvent: (
+    edgeId: string,
+    options: {
+      sourceConnection?: ConnectionPoint
+      targetConnection?: ConnectionPoint
+      edgeType?: EdgeType
+      style?: EdgeStyle
+      data?: Record<string, any>
+      userId?: string
+      timestamp?: Date
+    } = {}
+  ): DeleteEdgeEvent => {
+    return DeleteEdgeEventSchema.parse({
+      type: CanvasEventTypes.DELETE_EDGE,
+      payload: {
+        edgeId,
+        sourceConnection: options.sourceConnection,
+        targetConnection: options.targetConnection,
+        edgeType: options.edgeType,
+        style: options.style,
+        data: options.data,
+      },
+      timestamp: options.timestamp || new Date(),
+      userId: options.userId,
+    })
+  },
+
+  /**
+   * Creates an UPDATE_EDGE_PATH event
+   */
+  createUpdateEdgePathEvent: (
+    edgeId: string,
+    fromPath: EdgePath,
+    toPath: EdgePath,
+    reason: 'node_moved' | 'manual_edit' | 'routing_update',
+    options: {
+      preserveControlPoints?: boolean
+      userId?: string
+      timestamp?: Date
+    } = {}
+  ): UpdateEdgePathEvent => {
+    return UpdateEdgePathEventSchema.parse({
+      type: CanvasEventTypes.UPDATE_EDGE_PATH,
+      payload: {
+        edgeId,
+        fromPath,
+        toPath,
+        reason,
+        preserveControlPoints: options.preserveControlPoints || false,
       },
       timestamp: options.timestamp || new Date(),
       userId: options.userId,

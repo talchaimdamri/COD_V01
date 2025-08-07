@@ -1,5 +1,86 @@
 # Schema Changelog
 
+## Version 1.4.0 (2025-01-07)
+
+### Added
+
+- **Edge Connection System Schemas** - Complete schema layer for Task 7 edge connection system
+  - `events/canvas.ts` - Extended with edge event sourcing (CREATE_EDGE, DELETE_EDGE, UPDATE_EDGE_PATH)
+  - `api/edges.ts` - Edge component UI schemas for SVG rendering, drag-and-drop, and selection
+  - `database/edge.ts` - Edge entity persistence with connection point management
+  - Full integration with existing Canvas event sourcing architecture
+
+### Features
+
+- **Edge Events Integration** - Extended canvas events with edge-specific operations
+  - CREATE_EDGE event for establishing node connections with bezier/straight/orthogonal types
+  - DELETE_EDGE event with undo support preserving connection and style data
+  - UPDATE_EDGE_PATH event for dynamic routing when nodes move or paths are edited manually
+  - Edge event factory functions and validation utilities
+  - Type-safe discriminated unions for all edge event types
+- **Edge Component Props** - Comprehensive UI component validation and configuration
+  - BezierEdge, StraightEdge, and OrthogonalEdge component prop schemas
+  - Drag handles for control points, midpoints, and waypoint editing
+  - Edge selection state management with control point visibility
+  - Visual state tracking (selected, hovered, dragging, connecting, animated)
+  - Connection point detection with snap distance and visual feedback
+- **Edge Database Persistence** - Full database entity support with relationship management
+  - EdgeEntity schema with source/target node connections and anchor points
+  - Flexible metadata storage for edge-specific data and configuration
+  - Edge query filters supporting chain, node, and type-based filtering
+  - Edge statistics and analytics schemas for usage reporting
+  - Soft delete support and optimistic concurrency control
+- **Edge Routing and Styling** - Advanced visual configuration and path calculation
+  - EdgePath schema supporting bezier curves, straight lines, and orthogonal routing
+  - EdgeStyle schema with stroke, opacity, and SVG marker support
+  - EdgeLabel schema for text labels with positioning and styling
+  - Connection anchor management with input/output/bidirectional types
+  - Edge animation configuration for flow, pulse, and dash effects
+- **Drag-and-Drop Edge Creation** - Interactive edge creation workflow support
+  - EdgeCreationState schema for managing active edge creation process
+  - Connection point validation and compatibility checking
+  - Preview edge styling during creation with real-time visual feedback
+  - Snap-to-anchor detection with configurable distance thresholds
+
+### Schema Integration
+
+- **Canvas Event Sourcing** - Seamless integration with existing event architecture
+  - Extends CanvasEventSchema union with all edge event types
+  - Maintains consistency with Position and NodeType schemas from canvas
+  - Compatible with existing undo/redo functionality through event sourcing
+  - Event factory functions follow established patterns for type safety
+- **Database Relationship Support** - Proper foreign key relationships and constraints
+  - EdgeEntity integrates with existing chain structure via chainId
+  - Source/target node references with cascade delete behavior
+  - Connection anchor validation ensuring referential integrity
+  - Metadata sanitization preventing invalid data storage
+- **UI Component Architecture** - Extends existing node component patterns
+  - Reuses PositionSchema and coordinate systems from canvas events
+  - Follows same factory pattern as NodePropsFactory for consistency
+  - Compatible with existing visual state management patterns
+  - Integrates with drag-and-drop system used by nodes
+
+### Edge System Constants
+
+- **CANVAS_LIMITS.EDGE** - Edge-specific validation constants
+  - Stroke width limits (1-10px) with 2px default
+  - Label font size constraints (8-24px) with 12px default  
+  - Control point distance limits and minimum edge length validation
+  - Performance optimization thresholds for large edge counts
+- **Edge Type Safety** - Runtime validation and compile-time checking
+  - EdgeType enum: 'bezier' | 'straight' | 'orthogonal' 
+  - Connection type validation: 'input' | 'output' | 'bidirectional'
+  - Edge interaction event types with modifier key support
+  - Comprehensive error messages for validation failures
+
+### Migration Notes
+
+- Edge schemas extend existing Canvas and NodeType schemas with no breaking changes
+- Backward compatible with all existing event sourcing and database operations
+- EdgeEntity can be gradually integrated into existing chain operations
+- Connection points build on existing node anchor patterns from UI components
+- Edge routing algorithms can be enhanced without schema changes
+
 ## Version 1.3.0 (2025-01-07)
 
 ### Added

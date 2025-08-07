@@ -334,8 +334,65 @@
         "dependencies": [
           6
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Edge Component with SVG Path Rendering",
+            "description": "Build reusable Edge component that renders SVG paths with bezier curves and straight line options",
+            "dependencies": [],
+            "details": "Create Edge.tsx component using SVG path elements. Implement bezier curve calculations for smooth connections between nodes. Add support for straight line rendering as alternative. Include proper SVG viewBox handling and path optimization for performance. Component should accept start/end coordinates and render appropriate path type.",
+            "status": "pending",
+            "testStrategy": "Unit tests for path calculation functions, visual regression tests for different curve types, performance tests for multiple edges rendering"
+          },
+          {
+            "id": 2,
+            "title": "Implement Connection Points and Node Anchors",
+            "description": "Add visual connection points to DocumentNode and AgentNode components for edge attachment",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Extend existing node components with connection anchor points. Add visual indicators (circles/squares) at node borders for edge attachment. Implement anchor positioning logic for different node orientations. Handle anchor highlighting on hover and during drag operations. Ensure anchors integrate with existing node styling.",
+            "status": "pending",
+            "testStrategy": "Test anchor positioning on different screen sizes, verify hover states, test anchor visibility during drag operations, validate anchor click detection"
+          },
+          {
+            "id": 3,
+            "title": "Build Drag-and-Drop Edge Creation System",
+            "description": "Implement interactive edge creation through drag-and-drop operations between nodes",
+            "dependencies": [
+              "7.1",
+              "7.2"
+            ],
+            "details": "Create drag handler that initiates edge creation from node anchors. Implement temporary edge preview during drag operation with real-time path updates. Add drop detection on target nodes with visual feedback. Handle edge creation validation for document-to-agent and agent-to-document connections. Integrate with Canvas event sourcing system.",
+            "status": "pending",
+            "testStrategy": "Test drag initiation from anchors, verify preview edge rendering, test drop detection accuracy, validate edge creation events, test invalid connection rejection"
+          },
+          {
+            "id": 4,
+            "title": "Add Edge Styling and Visual Features",
+            "description": "Implement arrow markers, edge labels, selection highlighting, and visual feedback",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Create SVG marker definitions for arrow heads and other edge terminators. Implement edge labeling system with text along paths. Add selection highlighting with different stroke styles and colors. Create hover effects and visual feedback for edge interactions. Support different edge types with distinct visual styles for document-to-agent vs agent-to-document connections.",
+            "status": "pending",
+            "testStrategy": "Test arrow marker rendering, verify label positioning along curves, test selection highlighting, validate hover effects, test edge type visual differentiation"
+          },
+          {
+            "id": 5,
+            "title": "Implement Edge Management and Integration",
+            "description": "Build edge routing algorithms, selection handling, and Canvas integration",
+            "dependencies": [
+              "7.2",
+              "7.3",
+              "7.4"
+            ],
+            "details": "Implement edge routing algorithms that avoid node overlaps. Add edge selection and deletion functionality with keyboard shortcuts. Integrate edge management with Canvas event sourcing architecture. Handle edge updates when nodes are moved or resized. Implement edge persistence and restoration from canvas state. Add bulk edge operations and cleanup.",
+            "status": "pending",
+            "testStrategy": "Test edge routing around nodes, verify edge-node collision avoidance, test edge selection and deletion, validate Canvas integration, test edge persistence and restoration"
+          }
+        ]
       },
       {
         "id": 8,
@@ -600,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-07T19:59:38.779Z",
+      "updated": "2025-08-07T22:18:53.840Z",
       "description": "Tasks for master context"
     }
   }

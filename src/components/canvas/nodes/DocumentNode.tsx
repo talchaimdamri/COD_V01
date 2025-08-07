@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react'
 import { DocumentNodeProps, VisualState } from '../../../../schemas/api/nodes'
+import type { NodeAnchor } from '../../../../schemas/api/edges'
 
 // Default visual configuration constants
 const DEFAULT_CONFIG = {
@@ -50,8 +51,13 @@ const DEFAULT_CONFIG = {
  * - Mouse and touch interaction support
  * - Accessibility with proper ARIA labels
  * - Status indicator based on document status
+ * - Connection anchors for edge attachment
  */
-const DocumentNode: React.FC<DocumentNodeProps> = ({
+const DocumentNode: React.FC<DocumentNodeProps & {
+  showConnectionAnchors?: boolean
+  onAnchorHover?: (anchorId: string, hovered: boolean) => void
+  onAnchorClick?: (anchorId: string, position: { x: number; y: number }) => void
+}> = ({
   id,
   position,
   title,
@@ -64,6 +70,9 @@ const DocumentNode: React.FC<DocumentNodeProps> = ({
   onDragStart,
   onDragMove,
   onDragEnd,
+  showConnectionAnchors = false,
+  onAnchorHover,
+  onAnchorClick,
   ...props
 }) => {
   // Merge provided dimensions with defaults
@@ -96,6 +105,70 @@ const DocumentNode: React.FC<DocumentNodeProps> = ({
   }, [isVisuallyDragging, isSelected, isHovered, nodeColors])
 
   const currentColors = getCurrentColors()
+
+  // Define connection anchors for the document node
+  const anchors: NodeAnchor[] = [
+    {
+      id: 'top',
+      position: 'top',
+      connectionType: 'bidirectional',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'right',
+      position: 'right', 
+      connectionType: 'output',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'bottom',
+      position: 'bottom',
+      connectionType: 'bidirectional',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'left',
+      position: 'left',
+      connectionType: 'input',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+  ]
+
+  // Calculate anchor positions relative to node center
+  const getAnchorPosition = useCallback((anchorId: string) => {
+    switch (anchorId) {
+      case 'top':
+        return { x: currentPosition.x, y: currentPosition.y - nodeHeight / 2 }
+      case 'right':
+        return { x: currentPosition.x + nodeWidth / 2, y: currentPosition.y }
+      case 'bottom':
+        return { x: currentPosition.x, y: currentPosition.y + nodeHeight / 2 }
+      case 'left':
+        return { x: currentPosition.x - nodeWidth / 2, y: currentPosition.y }
+      default:
+        return currentPosition
+    }
+  }, [currentPosition, nodeWidth, nodeHeight])
+
+  // Handle anchor interactions
+  const handleAnchorMouseEnter = useCallback((anchorId: string) => {
+    onAnchorHover?.(anchorId, true)
+  }, [onAnchorHover])
+
+  const handleAnchorMouseLeave = useCallback((anchorId: string) => {
+    onAnchorHover?.(anchorId, false)
+  }, [onAnchorHover])
+
+  const handleAnchorClick = useCallback((event: React.MouseEvent, anchorId: string) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const anchorPosition = getAnchorPosition(anchorId)
+    onAnchorClick?.(anchorId, anchorPosition)
+  }, [getAnchorPosition, onAnchorClick])
 
   // Update position when prop changes (for external drag handling)
   useEffect(() => {
@@ -364,6 +437,34 @@ const DocumentNode: React.FC<DocumentNodeProps> = ({
           opacity="0.6"
         />
       )}
+
+      {/* Connection anchors */}
+      {anchors.map((anchor) => (
+        anchor.visible && (
+          <circle
+            key={anchor.id}
+            data-testid="node-anchor"
+            data-anchor-id={anchor.id}
+            data-connection-type={anchor.connectionType}
+            cx={anchor.position === 'left' ? -nodeWidth / 2 : 
+                anchor.position === 'right' ? nodeWidth / 2 : 0}
+            cy={anchor.position === 'top' ? -nodeHeight / 2 : 
+                anchor.position === 'bottom' ? nodeHeight / 2 : 0}
+            r="6"
+            fill={anchor.connectionType === 'input' ? '#10b981' :
+                  anchor.connectionType === 'output' ? '#3b82f6' : '#6366f1'}
+            stroke="white"
+            strokeWidth="2"
+            className="transition-all duration-200 cursor-pointer hover:scale-110"
+            style={{
+              opacity: isHovered || isSelected ? 1 : 0.7,
+            }}
+            onMouseEnter={() => handleAnchorMouseEnter(anchor.id)}
+            onMouseLeave={() => handleAnchorMouseLeave(anchor.id)}
+            onClick={(e) => handleAnchorClick(e, anchor.id)}
+          />
+        )
+      ))}
 
       {/* Hidden description for accessibility */}
       <desc id={`${id}-description`}>

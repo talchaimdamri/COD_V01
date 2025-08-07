@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react'
 import { AgentNodeProps, VisualState } from '../../../../schemas/api/nodes'
+import type { NodeAnchor } from '../../../../schemas/api/edges'
 
 // Default visual configuration constants
 const DEFAULT_CONFIG = {
@@ -60,8 +61,13 @@ const generateHexagonPath = (radius: number): string => {
  * - Visual states: default, selected, hover, dragging, focused
  * - Mouse and touch interaction support
  * - Accessibility with proper ARIA labels
+ * - Connection anchors for edge attachment
  */
-const AgentNode: React.FC<AgentNodeProps> = ({
+const AgentNode: React.FC<AgentNodeProps & {
+  showConnectionAnchors?: boolean
+  onAnchorHover?: (anchorId: string, hovered: boolean) => void
+  onAnchorClick?: (anchorId: string, position: { x: number; y: number }) => void
+}> = ({
   id,
   position,
   title,
@@ -75,6 +81,9 @@ const AgentNode: React.FC<AgentNodeProps> = ({
   onDragStart,
   onDragMove,
   onDragEnd,
+  showConnectionAnchors = false,
+  onAnchorHover,
+  onAnchorClick,
   ...props
 }) => {
   // Merge provided dimensions with defaults
@@ -105,6 +114,112 @@ const AgentNode: React.FC<AgentNodeProps> = ({
   }, [isVisuallyDragging, isSelected, isHovered, nodeColors])
 
   const currentColors = getCurrentColors()
+
+  // Define connection anchors for the agent node (hexagon has 6 sides)
+  const anchors: NodeAnchor[] = [
+    {
+      id: 'top-right',
+      position: 'right',
+      offset: { x: 0, y: -nodeRadius * 0.5 },
+      connectionType: 'output',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'right',
+      position: 'right',
+      connectionType: 'output',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'bottom-right',
+      position: 'right',
+      offset: { x: 0, y: nodeRadius * 0.5 },
+      connectionType: 'bidirectional',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'bottom-left',
+      position: 'left',
+      offset: { x: 0, y: nodeRadius * 0.5 },
+      connectionType: 'bidirectional',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'left',
+      position: 'left',
+      connectionType: 'input',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+    {
+      id: 'top-left',
+      position: 'left',
+      offset: { x: 0, y: -nodeRadius * 0.5 },
+      connectionType: 'input',
+      connectable: true,
+      visible: showConnectionAnchors || isSelected || isHovered,
+    },
+  ]
+
+  // Calculate anchor positions for hexagon vertices
+  const getAnchorPosition = useCallback((anchorId: string) => {
+    const offset = anchors.find(a => a.id === anchorId)?.offset || { x: 0, y: 0 }
+    
+    switch (anchorId) {
+      case 'top-right':
+        return { 
+          x: currentPosition.x + nodeRadius * Math.cos(Math.PI / 6) + offset.x,
+          y: currentPosition.y - nodeRadius * Math.sin(Math.PI / 6) + offset.y
+        }
+      case 'right':
+        return { 
+          x: currentPosition.x + nodeRadius + offset.x,
+          y: currentPosition.y + offset.y
+        }
+      case 'bottom-right':
+        return { 
+          x: currentPosition.x + nodeRadius * Math.cos(-Math.PI / 6) + offset.x,
+          y: currentPosition.y + nodeRadius * Math.sin(Math.PI / 6) + offset.y
+        }
+      case 'bottom-left':
+        return { 
+          x: currentPosition.x - nodeRadius * Math.cos(-Math.PI / 6) + offset.x,
+          y: currentPosition.y + nodeRadius * Math.sin(Math.PI / 6) + offset.y
+        }
+      case 'left':
+        return { 
+          x: currentPosition.x - nodeRadius + offset.x,
+          y: currentPosition.y + offset.y
+        }
+      case 'top-left':
+        return { 
+          x: currentPosition.x - nodeRadius * Math.cos(Math.PI / 6) + offset.x,
+          y: currentPosition.y - nodeRadius * Math.sin(Math.PI / 6) + offset.y
+        }
+      default:
+        return currentPosition
+    }
+  }, [currentPosition, nodeRadius, anchors])
+
+  // Handle anchor interactions
+  const handleAnchorMouseEnter = useCallback((anchorId: string) => {
+    onAnchorHover?.(anchorId, true)
+  }, [onAnchorHover])
+
+  const handleAnchorMouseLeave = useCallback((anchorId: string) => {
+    onAnchorHover?.(anchorId, false)
+  }, [onAnchorHover])
+
+  const handleAnchorClick = useCallback((event: React.MouseEvent, anchorId: string) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const anchorPosition = getAnchorPosition(anchorId)
+    onAnchorClick?.(anchorId, anchorPosition)
+  }, [getAnchorPosition, onAnchorClick])
 
   // Update position when prop changes (for external drag handling)
   useEffect(() => {
@@ -393,6 +508,36 @@ const AgentNode: React.FC<AgentNodeProps> = ({
           opacity="0.6"
         />
       )}
+
+      {/* Connection anchors */}
+      {anchors.map((anchor) => {
+        const anchorPos = getAnchorPosition(anchor.id)
+        const relativeX = anchorPos.x - currentPosition.x
+        const relativeY = anchorPos.y - currentPosition.y
+        
+        return anchor.visible && (
+          <circle
+            key={anchor.id}
+            data-testid="node-anchor"
+            data-anchor-id={anchor.id}
+            data-connection-type={anchor.connectionType}
+            cx={relativeX}
+            cy={relativeY}
+            r="6"
+            fill={anchor.connectionType === 'input' ? '#10b981' :
+                  anchor.connectionType === 'output' ? '#3b82f6' : '#6366f1'}
+            stroke="white"
+            strokeWidth="2"
+            className="transition-all duration-200 cursor-pointer hover:scale-110"
+            style={{
+              opacity: isHovered || isSelected ? 1 : 0.7,
+            }}
+            onMouseEnter={() => handleAnchorMouseEnter(anchor.id)}
+            onMouseLeave={() => handleAnchorMouseLeave(anchor.id)}
+            onClick={(e) => handleAnchorClick(e, anchor.id)}
+          />
+        )
+      })}
 
       {/* Hidden description for accessibility */}
       <desc id={`${id}-description`}>

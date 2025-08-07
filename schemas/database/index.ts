@@ -2,3 +2,4 @@
 export * from './chain'
 export * from './document'
 export * from './agent'
+export * from './edge'
