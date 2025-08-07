@@ -422,7 +422,7 @@
             "id": 3,
             "title": "Build version history UI components and controls",
             "description": "Use ui-developer sub-agent to create version list UI and undo/redo controls",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               2
             ],
@@ -545,7 +545,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-07T12:13:14.018Z",
+      "updated": "2025-08-07T12:20:43.396Z",
       "description": "Tasks for master context"
     }
   }

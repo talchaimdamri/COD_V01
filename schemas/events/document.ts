@@ -118,6 +118,21 @@ export const DocumentUndoRedoEventSchema = EventSchema.extend({
 })
 
 /**
+ * Version restore event - tracks version restoration operations
+ */
+export const DocumentVersionRestoreEventSchema = EventSchema.extend({
+  type: z.literal('DOCUMENT_VERSION_RESTORE'),
+  payload: z.object({
+    documentId: z.string().min(1).describe('Document identifier'),
+    restoredVersionId: z.string().min(1).describe('ID of the version being restored'),
+    restoredVersionNumber: z.number().int().min(1).describe('Version number being restored'),
+    previousContent: z.string().describe('Content before restore'),
+    restoredContent: z.string().describe('Content from restored version'),
+    metadata: z.record(z.any()).optional().describe('Additional restore metadata'),
+  }),
+})
+
+/**
  * Document session start/end events for tracking editing sessions
  */
 export const DocumentSessionEventSchema = EventSchema.extend({
@@ -139,6 +154,7 @@ export const DocumentEventSchema = z.discriminatedUnion('type', [
   DocumentContentChangeEventSchema,
   DocumentTitleChangeEventSchema,
   DocumentVersionSaveEventSchema,
+  DocumentVersionRestoreEventSchema,
   DocumentConnectionChangeEventSchema,
   DocumentFormattingChangeEventSchema,
   DocumentSelectionChangeEventSchema,
@@ -314,6 +330,35 @@ export class DocumentEventFactory {
   }
 
   /**
+   * Create a version restore event
+   */
+  static createVersionRestoreEvent(
+    documentId: string,
+    restoredVersionId: string,
+    restoredVersionNumber: number,
+    previousContent: string,
+    restoredContent: string,
+    options?: {
+      metadata?: Record<string, any>
+      userId?: string
+    }
+  ): z.infer<typeof DocumentVersionRestoreEventSchema> {
+    return {
+      type: 'DOCUMENT_VERSION_RESTORE',
+      payload: {
+        documentId,
+        restoredVersionId,
+        restoredVersionNumber,
+        previousContent,
+        restoredContent,
+        metadata: options?.metadata,
+      },
+      timestamp: new Date(),
+      userId: options?.userId,
+    }
+  }
+
+  /**
    * Create a session event
    */
   static createSessionEvent(
@@ -440,6 +485,7 @@ export type DocumentEvent = z.infer<typeof DocumentEventSchema>
 export type DocumentContentChangeEvent = z.infer<typeof DocumentContentChangeEventSchema>
 export type DocumentTitleChangeEvent = z.infer<typeof DocumentTitleChangeEventSchema>
 export type DocumentVersionSaveEvent = z.infer<typeof DocumentVersionSaveEventSchema>
+export type DocumentVersionRestoreEvent = z.infer<typeof DocumentVersionRestoreEventSchema>
 export type DocumentConnectionChangeEvent = z.infer<typeof DocumentConnectionChangeEventSchema>
 export type DocumentFormattingChangeEvent = z.infer<typeof DocumentFormattingChangeEventSchema>
 export type DocumentSelectionChangeEvent = z.infer<typeof DocumentSelectionChangeEventSchema>

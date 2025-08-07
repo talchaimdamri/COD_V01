@@ -26,6 +26,9 @@ export interface TipTapEditorProps {
   documentId?: string
   onDocumentEvent?: (event: DocumentEvent) => void
   enableEventSourcing?: boolean
+  // Version management integration
+  isVersionRestoring?: boolean
+  onVersionContentUpdate?: (content: string) => void
 }
 
 const TipTapEditor: React.FC<TipTapEditorProps> = ({
@@ -41,6 +44,8 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   documentId,
   onDocumentEvent,
   enableEventSourcing = false,
+  isVersionRestoring = false,
+  onVersionContentUpdate,
 }) => {
   const editor = useEditor({
     extensions: [
@@ -106,7 +111,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           class: 'tiptap-strike',
         },
       }),
-      // Event sourcing extension
+      // Event sourcing extension with version awareness
       ...(enableEventSourcing && documentId && onDocumentEvent ? [
         TipTapEventSourcingExtension.configure({
           documentId,
@@ -114,6 +119,9 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           debounceMs: 300, // Faster response for better UX
           trackSelections: false, // Disable for performance
           trackFormatting: true,
+          isVersionRestoring: isVersionRestoring,
+          enableAutoVersioning: true,
+          autoVersioningThreshold: 50, // Auto-version after 50 changes
         })
       ] : []),
     ],
@@ -185,9 +193,21 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   // Update content when prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content)
+      // Handle version restoration differently to maintain proper event flow
+      if (isVersionRestoring) {
+        // Clear history and set content without triggering change events
+        editor.commands.clearContent()
+        editor.commands.setContent(content, false, { preserveWhitespace: 'full' })
+        
+        // Notify parent of version content update
+        if (onVersionContentUpdate) {
+          onVersionContentUpdate(content)
+        }
+      } else {
+        editor.commands.setContent(content)
+      }
     }
-  }, [content, editor])
+  }, [content, editor, isVersionRestoring, onVersionContentUpdate])
 
   // Cleanup on unmount
   useEffect(() => {

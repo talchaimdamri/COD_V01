@@ -38,7 +38,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   const [diffVersionIds, setDiffVersionIds] = useState<{ source: string; target: string } | null>(null)
   const [showRestoreConfirmation, setShowRestoreConfirmation] = useState<{ versionId: string; versionNumber: number } | null>(null)
   
-  // Use document event sourcing
+  // Use document event sourcing with version management integration
   const {
     documentState,
     eventHistory,
@@ -46,6 +46,9 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     error,
     canUndo,
     canRedo,
+    lastVersionSync,
+    pendingVersionSnapshot,
+    versionRestoreInProgress,
     updateContent,
     updateTitle,
     saveVersion,
@@ -53,9 +56,12 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     redo,
     addConnection,
     removeConnection,
+    restoreToVersion,
+    createVersionSnapshot,
+    syncWithVersions,
   } = useDocumentEventSourcing(documentId)
   
-  // Version management hook
+  // Version management hook with integration
   const {
     versions,
     currentVersion,
@@ -69,13 +75,15 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     clearError: clearVersionsError,
   } = useVersionManagement({
     documentId,
-    onVersionRestored: (version) => {
-      console.log('Version restored:', version)
-      // Refresh document content
-      window.location.reload() // Temporary - should trigger content reload
+    onVersionRestored: async (version) => {
+      console.log('Version restored via API:', version)
+      // Use event sourcing to restore version content
+      await restoreToVersion(version)
     },
     onVersionDeleted: (versionId) => {
       console.log('Version deleted:', versionId)
+      // Sync with updated version list
+      syncWithVersions(versions.filter(v => v.id !== versionId))
     },
     onError: (error) => {
       console.error('Version management error:', error)
@@ -171,28 +179,35 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     }
   }, [editor])
 
-  // Enhanced Save Version functionality
+  // Enhanced Save Version functionality with integration
   const handleSaveVersion = useCallback(async () => {
     setIsSaving(true)
     try {
       const description = `Manual save - ${new Date().toLocaleString()}`
+      
+      // Save version through event sourcing
       await saveVersion({ description })
       
-      // Also create a snapshot in the version system
-      await createSnapshot(description)
+      // Create a snapshot in the version system
+      const newVersion = await createSnapshot(description)
       
-      // Also call the onSave prop if provided
+      // Sync with version management
+      if (newVersion) {
+        syncWithVersions([newVersion, ...versions])
+      }
+      
+      // Call the onSave prop if provided
       if (onSave && documentState?.content) {
         onSave(documentState.content)
       }
       
-      console.log('Version saved successfully')
+      console.log('Version saved and synced successfully')
     } catch (error) {
       console.error('Save version error:', error)
     } finally {
       setIsSaving(false)
     }
-  }, [saveVersion, createSnapshot, onSave, documentState?.content])
+  }, [saveVersion, createSnapshot, syncWithVersions, versions, onSave, documentState?.content])
 
   // Handle document events from TipTap
   const handleDocumentEvent = useCallback(async (event: any) => {
@@ -214,11 +229,15 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     setEditor(editorInstance)
   }, [])
   
-  // Version history handlers
-  const handleShowVersionHistory = useCallback(() => {
+  // Version history handlers with sync
+  const handleShowVersionHistory = useCallback(async () => {
     setIsVersionHistoryVisible(true)
-    loadVersions({ page: 1, reset: true })
-  }, [loadVersions])
+    await loadVersions({ page: 1, reset: true })
+    // Sync versions with event sourcing after loading
+    if (versions.length > 0) {
+      syncWithVersions(versions)
+    }
+  }, [loadVersions, versions, syncWithVersions])
   
   const handleHideVersionHistory = useCallback(() => {
     setIsVersionHistoryVisible(false)
@@ -241,16 +260,23 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   const handleConfirmRestore = useCallback(async () => {
     if (!showRestoreConfirmation) return
     
-    const success = await restoreVersionApi(
-      showRestoreConfirmation.versionId,
-      `Restored to version ${showRestoreConfirmation.versionNumber}`
-    )
-    
-    if (success) {
-      setShowRestoreConfirmation(null)
-      setIsVersionHistoryVisible(false)
+    try {
+      // Use API restore which will trigger event sourcing integration
+      const success = await restoreVersionApi(
+        showRestoreConfirmation.versionId,
+        `Restored to version ${showRestoreConfirmation.versionNumber}`
+      )
+      
+      if (success) {
+        // Reload versions to get updated list
+        await loadVersions({ page: 1, reset: true })
+        setShowRestoreConfirmation(null)
+        setIsVersionHistoryVisible(false)
+      }
+    } catch (error) {
+      console.error('Version restore failed:', error)
     }
-  }, [showRestoreConfirmation, restoreVersionApi])
+  }, [showRestoreConfirmation, restoreVersionApi, loadVersions])
   
   const handleCancelRestore = useCallback(() => {
     setShowRestoreConfirmation(null)
@@ -467,7 +493,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                 <div 
                   className="flex-1 overflow-auto relative"
                 >
-                  {/* TipTap Editor */}
+                  {/* TipTap Editor with Version Integration */}
                   <TipTapEditor
                     content={documentState?.content || initialContent}
                     onChange={updateContent}
@@ -478,19 +504,28 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                     documentId={documentId}
                     onDocumentEvent={handleDocumentEvent}
                     enableEventSourcing={true}
+                    isVersionRestoring={versionRestoreInProgress}
+                    onVersionContentUpdate={(content) => {
+                      console.log('Version content updated in editor:', content.substring(0, 100) + '...')
+                    }}
                   />
 
                   {/* Status Indicators */}
                   <div className="absolute bottom-4 right-4 flex items-center gap-2 text-xs">
-                    {isSaving ? (
+                    {isSaving || pendingVersionSnapshot ? (
                       <div data-testid="saving-indicator" className="text-orange-600 flex items-center gap-1">
                         <div className="w-3 h-3 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
-                        Saving...
+                        {pendingVersionSnapshot ? 'Creating snapshot...' : 'Saving...'}
+                      </div>
+                    ) : versionRestoreInProgress ? (
+                      <div data-testid="restoring-indicator" className="text-purple-600 flex items-center gap-1">
+                        <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                        Restoring version...
                       </div>
                     ) : (
                       <div data-testid="saved-indicator" className="text-green-600 flex items-center gap-1">
                         <div className="w-2 h-2 bg-green-600 rounded-full" />
-                        Saved
+                        Saved {lastVersionSync && `(synced ${new Date(lastVersionSync).toLocaleTimeString()})`}
                       </div>
                     )}
                     

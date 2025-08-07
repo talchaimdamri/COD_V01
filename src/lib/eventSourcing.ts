@@ -22,6 +22,7 @@ import {
   DocumentEventUtils,
 } from '../../schemas/events/document'
 import { CanvasState, CanvasNode, DEFAULT_VIEW_BOX } from '../components/canvas/types'
+import { Version } from '../../schemas/api/versions'
 
 /**
  * Event sourcing service for canvas operations
@@ -486,6 +487,10 @@ export interface DocumentEventSourcingState {
   error: string | null
   canUndo: boolean
   canRedo: boolean
+  // Version integration state
+  lastVersionSync: Date | null
+  pendingVersionSnapshot: boolean
+  versionRestoreInProgress: boolean
 }
 
 export interface DocumentEventSourcingActions {
@@ -496,6 +501,10 @@ export interface DocumentEventSourcingActions {
   redo: () => Promise<void>
   addConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
   removeConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
+  // Version management integration
+  restoreToVersion: (version: Version) => Promise<void>
+  createVersionSnapshot: () => Promise<void>
+  syncWithVersions: (versions: Version[]) => void
 }
 
 // Document event API service
@@ -705,10 +714,16 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
   const [error, setError] = useState<string | null>(null)
   const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
   
+  // Version integration state
+  const [lastVersionSync, setLastVersionSync] = useState<Date | null>(null)
+  const [pendingVersionSnapshot, setPendingVersionSnapshot] = useState(false)
+  const [versionRestoreInProgress, setVersionRestoreInProgress] = useState(false)
+  
   const eventService = useRef(new DocumentEventAPIService())
   const eventBuffer = useRef<DocumentEventBuffer | null>(null)
   const lastContentRef = useRef('')
   const versionCounter = useRef(1)
+  const versionSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Derive document state from events
   const documentState = useMemo(() => {
@@ -992,6 +1007,97 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
     await dispatchEvent(event)
   }, [documentId, dispatchEvent])
 
+  // Version management integration functions
+  const restoreToVersion = useCallback(async (version: Version) => {
+    if (versionRestoreInProgress) return
+    
+    setVersionRestoreInProgress(true)
+    setError(null)
+    
+    try {
+      // Create restore event
+      const restoreEvent = DocumentEventFactory.createVersionRestoreEvent(
+        documentId,
+        version.id,
+        version.versionNumber,
+        documentState?.content || '',
+        version.content,
+        {
+          description: `Restored to version ${version.versionNumber}`,
+          restoredAt: new Date().toISOString(),
+        }
+      )
+      
+      // Clear current event history and start fresh from restored content
+      setEventHistory([restoreEvent])
+      setCurrentEventIndex(0)
+      
+      // Update content reference
+      lastContentRef.current = version.content
+      
+      // Trigger content update in UI
+      const contentEvent = DocumentEventFactory.createContentChangeEvent(
+        documentId,
+        documentState?.content || '',
+        version.content,
+        'replace'
+      )
+      
+      await dispatchEvent(contentEvent, true)
+      
+    } catch (err) {
+      console.error('Failed to restore version:', err)
+      setError(err instanceof Error ? err.message : 'Failed to restore version')
+    } finally {
+      setVersionRestoreInProgress(false)
+    }
+  }, [documentId, documentState?.content, dispatchEvent, versionRestoreInProgress])
+  
+  const createVersionSnapshot = useCallback(async () => {
+    if (pendingVersionSnapshot) return
+    
+    setPendingVersionSnapshot(true)
+    try {
+      await saveVersion({ description: `Auto-snapshot ${new Date().toLocaleString()}` })
+    } catch (error) {
+      console.error('Failed to create version snapshot:', error)
+    } finally {
+      setPendingVersionSnapshot(false)
+    }
+  }, [saveVersion, pendingVersionSnapshot])
+  
+  const syncWithVersions = useCallback((versions: Version[]) => {
+    setLastVersionSync(new Date())
+    
+    // Clear any pending sync timeout
+    if (versionSyncTimeoutRef.current) {
+      clearTimeout(versionSyncTimeoutRef.current)
+    }
+    
+    // Optionally trigger auto-snapshot after significant changes
+    if (versions.length > 0 && documentState?.content) {
+      const latestVersion = versions[0]
+      const timeSinceLastVersion = new Date().getTime() - new Date(latestVersion.createdAt).getTime()
+      const contentChanged = latestVersion.content !== documentState.content
+      
+      // Auto-snapshot if content has changed and it's been more than 5 minutes since last version
+      if (contentChanged && timeSinceLastVersion > 5 * 60 * 1000) {
+        versionSyncTimeoutRef.current = setTimeout(() => {
+          createVersionSnapshot()
+        }, 30000) // 30 second delay for auto-snapshot
+      }
+    }
+  }, [documentState?.content, createVersionSnapshot])
+
+  // Cleanup version sync timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (versionSyncTimeoutRef.current) {
+        clearTimeout(versionSyncTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return {
     documentState,
     eventHistory,
@@ -1000,6 +1106,9 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
     error,
     canUndo,
     canRedo,
+    lastVersionSync,
+    pendingVersionSnapshot,
+    versionRestoreInProgress,
     updateContent,
     updateTitle,
     saveVersion,
@@ -1007,5 +1116,8 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
     redo,
     addConnection,
     removeConnection,
+    restoreToVersion,
+    createVersionSnapshot,
+    syncWithVersions,
   }
 }

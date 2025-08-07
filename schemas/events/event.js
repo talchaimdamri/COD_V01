@@ -19,9 +19,8 @@ export const EventSchema = z.object({
      */
     payload: z
         .any()
-        .refine(val => val !== undefined, {
+        .refine((val) => val !== undefined, {
         message: 'payload is required',
-        code: z.ZodIssueCode.invalid_type,
     })
         .describe('Event data payload - can be object, array, string, number, boolean, or null'),
     /**

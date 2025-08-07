@@ -15,12 +15,18 @@ interface EventSourcingOptions {
   debounceMs?: number
   trackSelections?: boolean
   trackFormatting?: boolean
+  isVersionRestoring?: boolean
+  enableAutoVersioning?: boolean
+  autoVersioningThreshold?: number
 }
 
 interface EventSourcingStorage {
   documentId: string
   previousContent: string
   previousSelection: { from: number; to: number } | null
+  changeCounter: number
+  lastAutoVersionTime: number
+  isVersionRestoring: boolean
 }
 
 export const TipTapEventSourcingExtension = Extension.create<EventSourcingOptions, EventSourcingStorage>({
@@ -33,6 +39,9 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
       debounceMs: 500,
       trackSelections: false,
       trackFormatting: true,
+      isVersionRestoring: false,
+      enableAutoVersioning: false,
+      autoVersioningThreshold: 100, // Changes before auto-version
     }
   },
 
@@ -41,6 +50,9 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
       documentId: this.options.documentId,
       previousContent: '',
       previousSelection: null,
+      changeCounter: 0,
+      lastAutoVersionTime: Date.now(),
+      isVersionRestoring: this.options.isVersionRestoring || false,
     }
   },
 
@@ -79,6 +91,12 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
         return
       }
 
+      // Skip if version is being restored to prevent event loops
+      if (self.storage.isVersionRestoring) {
+        self.storage.previousContent = newContent
+        return
+      }
+
       // Determine change type based on content length
       let changeType: 'insert' | 'delete' | 'replace' = 'replace'
       if (newContent.length > previousContent.length) {
@@ -86,6 +104,9 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
       } else if (newContent.length < previousContent.length) {
         changeType = 'delete'
       }
+
+      // Increment change counter for auto-versioning
+      self.storage.changeCounter++
 
       // Buffer the change for debouncing
       changeBuffer = {
@@ -101,7 +122,7 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
       }
 
       debounceTimer = setTimeout(() => {
-        if (changeBuffer) {
+        if (changeBuffer && !self.storage.isVersionRestoring) {
           createContentChangeEvent(
             previousContent,
             changeBuffer.content!,
@@ -110,6 +131,30 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
               ? { from: changeBuffer.from, to: changeBuffer.to }
               : undefined
           )
+          
+          // Check for auto-versioning
+          if (self.options.enableAutoVersioning && 
+              self.storage.changeCounter >= self.options.autoVersioningThreshold!) {
+            const now = Date.now()
+            const timeSinceLastVersion = now - self.storage.lastAutoVersionTime
+            
+            // Auto-version if enough changes and time has passed (5 minutes)
+            if (timeSinceLastVersion > 5 * 60 * 1000) {
+              const autoVersionEvent = DocumentEventFactory.createVersionSaveEvent(
+                self.options.documentId,
+                Math.floor(now / 1000), // Use timestamp as version number
+                changeBuffer.content!,
+                {
+                  description: `Auto-version after ${self.storage.changeCounter} changes`,
+                }
+              )
+              
+              self.options.onEvent(autoVersionEvent)
+              self.storage.changeCounter = 0
+              self.storage.lastAutoVersionTime = now
+            }
+          }
+          
           changeBuffer = null
         }
       }, self.options.debounceMs)
@@ -125,10 +170,16 @@ export const TipTapEventSourcingExtension = Extension.create<EventSourcingOption
         state: {
           init: (_, state) => {
             self.storage.previousContent = state.doc.textContent
+            self.storage.isVersionRestoring = self.options.isVersionRestoring || false
             return {}
           },
 
           apply: (tr, value, oldState, newState) => {
+            // Update version restoring state if changed
+            if (self.options.isVersionRestoring !== self.storage.isVersionRestoring) {
+              self.storage.isVersionRestoring = self.options.isVersionRestoring || false
+            }
+            
             // Track content changes
             if (tr.docChanged) {
               handleContentChange(oldState, newState, tr)
