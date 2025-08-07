@@ -495,11 +495,11 @@ export interface DocumentEventSourcingActions {
 export function useDocumentEventSourcing(documentId: string): DocumentEventSourcingState & DocumentEventSourcingActions {
   const [documentState, setDocumentState] = useState<DocumentState | null>({
     id: documentId,
-    title: 'Test Document',
-    content: '<p>Test content</p>',
+    title: 'Document Processing Chain Analysis',
+    content: '<h1>Document Processing Chain Analysis</h1><p>This document demonstrates the upstream and downstream connection system...</p>',
     version: 1,
-    upstream: [],
-    downstream: [],
+    upstream: ['doc-source-1', 'doc-analysis-2'],
+    downstream: ['doc-summary-1', 'doc-report-2'],
   })
   const [eventHistory] = useState<any[]>([])
   const [currentEventIndex] = useState(-1)
@@ -527,12 +527,42 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
   }, [])
 
   const addConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
+    if (!documentState) return
+    
     console.log('Adding connection:', connectionId, type)
-  }, [])
+    
+    // Update the document state with the new connection
+    setDocumentState(prev => {
+      if (!prev) return null
+      
+      const connections = prev[type]
+      if (connections.includes(connectionId)) return prev
+      
+      return {
+        ...prev,
+        [type]: [...connections, connectionId],
+      }
+    })
+  }, [documentState])
 
   const removeConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
+    if (!documentState) return
+    
     console.log('Removing connection:', connectionId, type)
-  }, [])
+    
+    // Update the document state by removing the connection
+    setDocumentState(prev => {
+      if (!prev) return null
+      
+      const connections = prev[type]
+      if (!connections.includes(connectionId)) return prev
+      
+      return {
+        ...prev,
+        [type]: connections.filter(id => id !== connectionId),
+      }
+    })
+  }, [documentState])
 
   return {
     documentState,

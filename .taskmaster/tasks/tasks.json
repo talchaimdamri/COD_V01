@@ -351,7 +351,7 @@
             "id": 4,
             "title": "Build custom toolbar with formatting controls",
             "description": "Create toolbar with formatting options and special buttons",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "details": "Implement custom toolbar with text formatting options (bold, italic, headings), Ask Agent button, Undo/Redo controls, and Save Version functionality. Ensure toolbar is responsive and accessible.",
             "testStrategy": ""
@@ -360,7 +360,7 @@
             "id": 5,
             "title": "Implement document rails for upstream/downstream connections",
             "description": "Add document rails showing chain connections",
-            "status": "pending",
+            "status": "in-progress",
             "dependencies": [],
             "details": "Create document rails component showing upstream and downstream document connections. Display visual indicators of document relationships and allow navigation between connected documents.",
             "testStrategy": ""
@@ -545,7 +545,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-06T23:11:06.688Z",
+      "updated": "2025-08-06T23:16:06.693Z",
       "description": "Tasks for master context"
     }
   }

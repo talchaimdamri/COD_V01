@@ -254,23 +254,45 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
               {/* Document Rails */}
               <DocumentRails
                 documentId={documentId}
-                upstream={documentState?.upstream?.map(id => ({
+                upstream={documentState?.upstream?.map((id, index) => ({
                   id,
-                  title: `Document ${id}`,
-                  type: 'document' as const,
-                  preview: 'Preview content...',
-                  lastModified: new Date(),
+                  title: `${index === 0 ? 'Source Research Paper' : index === 1 ? 'Data Analysis Report' : 'Reference Document'} ${id.slice(-3)}`,
+                  type: (index % 2 === 0 ? 'document' : 'agent') as const,
+                  preview: index === 0 
+                    ? 'This research paper provides foundational insights into the methodology and theoretical framework that informs our analysis...' 
+                    : index === 1 
+                    ? 'Automated analysis results showing key patterns and statistical correlations found in the source data...'
+                    : 'Supporting reference material with additional context and background information for comprehensive understanding...',
+                  lastModified: new Date(Date.now() - (index + 1) * 86400000), // Days ago
+                  metadata: {
+                    author: index === 0 ? 'Dr. Sarah Chen' : index === 1 ? 'AI Analysis Bot' : 'Research Team',
+                    wordCount: Math.floor(Math.random() * 5000) + 1000,
+                    status: index % 3 === 0 ? 'published' : index % 3 === 1 ? 'draft' : 'archived',
+                    tags: index === 0 ? ['research', 'methodology'] : index === 1 ? ['analysis', 'data'] : ['reference', 'context'],
+                  },
                 })) || []}
-                downstream={documentState?.downstream?.map(id => ({
+                downstream={documentState?.downstream?.map((id, index) => ({
                   id,
-                  title: `Document ${id}`,
-                  type: 'document' as const,
-                  preview: 'Preview content...',
-                  lastModified: new Date(),
+                  title: `${index === 0 ? 'Executive Summary' : index === 1 ? 'Technical Analysis' : 'Report Output'} ${id.slice(-3)}`,
+                  type: (index % 2 === 1 ? 'document' : 'agent') as const,
+                  preview: index === 0 
+                    ? 'Comprehensive executive summary synthesizing key findings and recommendations for stakeholder review...' 
+                    : index === 1 
+                    ? 'Detailed technical analysis breaking down methodologies, results, and implications of the research...'
+                    : 'Generated report output containing processed information and actionable insights derived from source materials...',
+                  lastModified: new Date(Date.now() + (index + 1) * 3600000), // Hours from now
+                  metadata: {
+                    author: index === 0 ? 'Content Generator' : index === 1 ? 'Technical Writer AI' : 'Report Builder',
+                    wordCount: Math.floor(Math.random() * 3000) + 500,
+                    status: index % 3 === 0 ? 'draft' : index % 3 === 1 ? 'published' : 'draft',
+                    tags: index === 0 ? ['summary', 'executive'] : index === 1 ? ['technical', 'analysis'] : ['report', 'output'],
+                  },
                 })) || []}
                 onConnect={addConnection}
                 onDisconnect={removeConnection}
                 onPreview={(connectionId) => console.log('Preview:', connectionId)}
+                isLoading={isLoading}
+                error={error}
               />
 
               {/* Main Content Area */}
