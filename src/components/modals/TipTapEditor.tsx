@@ -9,6 +9,8 @@ import CodeBlock from '@tiptap/extension-code-block'
 import Blockquote from '@tiptap/extension-blockquote'
 import Underline from '@tiptap/extension-underline'
 import Strike from '@tiptap/extension-strike'
+import TipTapEventSourcingExtension from './TipTapEventSourcingExtension'
+import { DocumentEvent } from '../../../schemas/events/document'
 
 export interface TipTapEditorProps {
   content: string
@@ -20,6 +22,10 @@ export interface TipTapEditorProps {
   editable?: boolean
   placeholder?: string
   className?: string
+  // Event sourcing integration
+  documentId?: string
+  onDocumentEvent?: (event: DocumentEvent) => void
+  enableEventSourcing?: boolean
 }
 
 const TipTapEditor: React.FC<TipTapEditorProps> = ({
@@ -32,6 +38,9 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   editable = true,
   placeholder = 'Start writing...',
   className = '',
+  documentId,
+  onDocumentEvent,
+  enableEventSourcing = false,
 }) => {
   const editor = useEditor({
     extensions: [
@@ -43,8 +52,8 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         listItem: false,
         codeBlock: false,
         blockquote: false,
-        // Keep other StarterKit extensions enabled
-        history: {
+        // Configure history for event sourcing integration
+        history: enableEventSourcing ? false : {
           depth: 100,
           newGroupDelay: 500,
         },
@@ -97,6 +106,16 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           class: 'tiptap-strike',
         },
       }),
+      // Event sourcing extension
+      ...(enableEventSourcing && documentId && onDocumentEvent ? [
+        TipTapEventSourcingExtension.configure({
+          documentId,
+          onEvent: onDocumentEvent,
+          debounceMs: 300, // Faster response for better UX
+          trackSelections: false, // Disable for performance
+          trackFormatting: true,
+        })
+      ] : []),
     ],
     content,
     editable,
@@ -116,11 +135,11 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         'data-testid': 'tiptap-editor-content',
         spellcheck: 'true',
       },
-      handlePaste: (view, event) => {
+      handlePaste: () => {
         // Custom paste handling can be added here
         return false // Let TipTap handle paste normally
       },
-      handleDrop: (view, event, slice, moved) => {
+      handleDrop: () => {
         // Custom drop handling can be added here
         return false // Let TipTap handle drop normally
       },

@@ -360,7 +360,7 @@
             "id": 5,
             "title": "Implement document rails for upstream/downstream connections",
             "description": "Add document rails showing chain connections",
-            "status": "in-progress",
+            "status": "done",
             "dependencies": [],
             "details": "Create document rails component showing upstream and downstream document connections. Display visual indicators of document relationships and allow navigation between connected documents.",
             "testStrategy": ""
@@ -545,7 +545,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-06T23:16:06.693Z",
+      "updated": "2025-08-07T07:26:20.762Z",
       "description": "Tasks for master context"
     }
   }

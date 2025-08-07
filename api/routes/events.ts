@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import {
   CreateEventRequestSchema,
   ListEventsQuerySchema,
@@ -218,6 +219,140 @@ export default async function eventsRoutes(fastify: FastifyInstance) {
   )
 
   // Additional utility endpoints for event management
+
+  // GET /api/events/document - Get document events with filtering
+  fastify.get(
+    '/events/document',
+    {
+      preHandler: [
+        optionalAuth,
+        validateRequest({
+          querystring: ListEventsQuerySchema.extend({
+            documentId: z.string().optional(),
+          }),
+        }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as any
+        
+        // Extract pagination parameters
+        const page = query.page || 1
+        const limit = query.limit || 100 // Higher limit for document events
+        
+        // Extract document-specific filters
+        const filters: eventsService.EventFilters = {
+          typePrefix: 'DOCUMENT_', // Only document events
+        }
+        
+        if (query.documentId) {
+          // Filter by documentId in payload
+          filters.payloadContains = query.documentId
+        }
+        if (query.type) filters.type = query.type
+        if (query.userId) filters.userId = query.userId
+        if (query.fromTimestamp) filters.fromTimestamp = new Date(query.fromTimestamp)
+        if (query.toTimestamp) filters.toTimestamp = new Date(query.toTimestamp)
+        
+        // Get events from service
+        const result = await eventsService.listEvents(filters, { page, limit })
+        
+        // Format response
+        const response = {
+          data: result.events,
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+            totalPages: result.totalPages,
+            hasNext: result.hasNext,
+            hasPrev: result.hasPrev,
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            documentId: query.documentId,
+          },
+        }
+        
+        reply.status(200).send(response)
+      } catch (error) {
+        fastify.log.error('Error listing document events:', error)
+        
+        const errorResponse = ErrorResponseSchema.parse({
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to retrieve document events',
+          },
+        })
+        
+        reply.status(500).send(errorResponse)
+      }
+    }
+  )
+
+  // POST /api/events/document - Create document event
+  fastify.post(
+    '/events/document',
+    {
+      preHandler: [
+        optionalAuth, // Allow unauthenticated for development
+        validateRequest({
+          body: CreateEventRequestSchema,
+        }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as any
+        const userId = getCurrentUserIdOptional(request)
+        
+        // Validate document event type
+        if (!body.type.startsWith('DOCUMENT_')) {
+          const badRequestResponse = ErrorResponseSchema.parse({
+            error: {
+              code: 'BAD_REQUEST',
+              message: 'Only document events are allowed on this endpoint',
+            },
+          })
+          
+          return reply.status(400).send(badRequestResponse)
+        }
+        
+        // Prepare event data
+        const eventData: eventsService.CreateEventData = {
+          type: body.type,
+          payload: body.payload,
+          timestamp: body.timestamp ? new Date(body.timestamp) : undefined,
+          userId: body.userId || userId,
+        }
+        
+        // Create event via service
+        const event = await eventsService.createEvent(eventData)
+        
+        // Format response
+        const response = {
+          data: event,
+          meta: {
+            timestamp: new Date().toISOString(),
+          },
+        }
+        
+        reply.status(201).send(response)
+      } catch (error) {
+        fastify.log.error('Error creating document event:', error)
+        
+        const errorResponse = ErrorResponseSchema.parse({
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to create document event',
+          },
+        })
+        
+        reply.status(500).send(errorResponse)
+      }
+    }
+  )
 
   // GET /api/events/stats - Get event statistics (optional endpoint)
   fastify.get(

@@ -31,11 +31,13 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   // Use document event sourcing
   const {
     documentState,
+    eventHistory,
     isLoading,
     error,
     canUndo,
     canRedo,
     updateContent,
+    updateTitle,
     saveVersion,
     undo,
     redo,
@@ -152,6 +154,21 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     }
   }, [saveVersion, onSave, documentState?.content])
 
+  // Handle document events from TipTap
+  const handleDocumentEvent = useCallback(async (event: any) => {
+    console.log('Document event received:', event.type, event.payload)
+    // Events are handled automatically by the event sourcing system
+    // This is just for debugging/monitoring
+  }, [])
+
+  // Handle title changes with event sourcing
+  const handleTitleChange = useCallback(async (newTitle: string) => {
+    if (newTitle !== documentTitle) {
+      setDocumentTitle(newTitle)
+      await updateTitle(newTitle)
+    }
+  }, [documentTitle, updateTitle])
+
   // Handle editor ready callback
   const handleEditorReady = useCallback((editorInstance: any) => {
     setEditor(editorInstance)
@@ -196,7 +213,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
             <input
               type="text"
               value={documentTitle}
-              onChange={(e) => setDocumentTitle(e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
               className="text-lg font-semibold bg-transparent border-none outline-none focus:bg-white focus:border focus:border-purple-300 rounded px-2 py-1 transition-all"
               placeholder="Document Title"
             />
@@ -257,7 +274,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                 upstream={documentState?.upstream?.map((id, index) => ({
                   id,
                   title: `${index === 0 ? 'Source Research Paper' : index === 1 ? 'Data Analysis Report' : 'Reference Document'} ${id.slice(-3)}`,
-                  type: (index % 2 === 0 ? 'document' : 'agent') as const,
+                  type: index % 2 === 0 ? 'document' as const : 'agent' as const,
                   preview: index === 0 
                     ? 'This research paper provides foundational insights into the methodology and theoretical framework that informs our analysis...' 
                     : index === 1 
@@ -274,7 +291,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                 downstream={documentState?.downstream?.map((id, index) => ({
                   id,
                   title: `${index === 0 ? 'Executive Summary' : index === 1 ? 'Technical Analysis' : 'Report Output'} ${id.slice(-3)}`,
-                  type: (index % 2 === 1 ? 'document' : 'agent') as const,
+                  type: index % 2 === 1 ? 'document' as const : 'agent' as const,
                   preview: index === 0 
                     ? 'Comprehensive executive summary synthesizing key findings and recommendations for stakeholder review...' 
                     : index === 1 
@@ -288,8 +305,8 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                     tags: index === 0 ? ['summary', 'executive'] : index === 1 ? ['technical', 'analysis'] : ['report', 'output'],
                   },
                 })) || []}
-                onConnect={addConnection}
-                onDisconnect={removeConnection}
+                onConnect={(_docId, connectionId, type) => addConnection(connectionId, type)}
+                onDisconnect={(_docId, connectionId, type) => removeConnection(connectionId, type)}
                 onPreview={(connectionId) => console.log('Preview:', connectionId)}
                 isLoading={isLoading}
                 error={error}
@@ -311,6 +328,8 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                   onSaveVersion={handleSaveVersion}
                   canUndo={canUndo}
                   canRedo={canRedo}
+                  onUndo={undo}
+                  onRedo={redo}
                   isSaving={isSaving}
                   isAskAgentLoading={isAskAgentLoading}
                 />
@@ -327,6 +346,9 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
                     onEditorReady={handleEditorReady}
                     placeholder="Start writing your document..."
                     className="h-full"
+                    documentId={documentId}
+                    onDocumentEvent={handleDocumentEvent}
+                    enableEventSourcing={true}
                   />
 
                   {/* Status Indicators */}
@@ -365,8 +387,11 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
             <div className="text-xs text-gray-500">
               Document ID: {documentId}
             </div>
-            <div className="text-xs text-gray-500">
-              Version 1 • Last saved: Never
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <span>Version {documentState?.version || 1}</span>
+              <span>Events: {eventHistory.length}</span>
+              <span>Words: {documentState?.content ? documentState.content.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(w => w.length > 0).length : 0}</span>
+              <span>Last updated: {documentState?.updatedAt ? new Date(documentState.updatedAt).toLocaleTimeString() : 'Never'}</span>
             </div>
           </div>
         </footer>

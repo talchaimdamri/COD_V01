@@ -29,6 +29,8 @@ export interface DocumentEditorToolbarProps {
   onSaveVersion: () => void
   canUndo?: boolean
   canRedo?: boolean
+  onUndo?: () => void
+  onRedo?: () => void
   isSaving?: boolean
   isAskAgentLoading?: boolean
 }
@@ -39,6 +41,8 @@ const DocumentEditorToolbar: React.FC<DocumentEditorToolbarProps> = ({
   onSaveVersion,
   canUndo = false,
   canRedo = false,
+  onUndo,
+  onRedo,
   isSaving = false,
   isAskAgentLoading = false,
 }) => {
@@ -87,7 +91,7 @@ const DocumentEditorToolbar: React.FC<DocumentEditorToolbarProps> = ({
     testId: string
     onClick: () => void
     isActive?: boolean
-    icon: React.ComponentType<{ size: number }>
+    icon: React.ComponentType<any>
     label: string
     shortcut?: string
     disabled?: boolean
@@ -301,7 +305,7 @@ const DocumentEditorToolbar: React.FC<DocumentEditorToolbarProps> = ({
         >
           <ToolbarButton
             testId="toolbar-undo"
-            onClick={() => editor.commands.undo()}
+            onClick={onUndo ? onUndo : () => editor.commands.undo()}
             disabled={!canUndo}
             icon={Undo}
             label="Undo"
@@ -310,7 +314,7 @@ const DocumentEditorToolbar: React.FC<DocumentEditorToolbarProps> = ({
           
           <ToolbarButton
             testId="toolbar-redo"
-            onClick={() => editor.commands.redo()}
+            onClick={onRedo ? onRedo : () => editor.commands.redo()}
             disabled={!canRedo}
             icon={Redo}
             label="Redo"

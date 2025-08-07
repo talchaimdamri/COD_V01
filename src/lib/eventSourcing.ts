@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   CanvasEvent,
   CanvasEventFactory,
@@ -16,6 +16,11 @@ import {
   CanvasEventUtils,
   CANVAS_LIMITS,
 } from '../../schemas/events/canvas'
+import {
+  DocumentEvent,
+  DocumentEventFactory,
+  DocumentEventUtils,
+} from '../../schemas/events/document'
 import { CanvasState, CanvasNode, DEFAULT_VIEW_BOX } from '../components/canvas/types'
 
 /**
@@ -485,84 +490,507 @@ export interface DocumentEventSourcingState {
 
 export interface DocumentEventSourcingActions {
   updateContent: (content: string) => Promise<void>
-  saveVersion: (options: { description?: string }) => Promise<void>
+  updateTitle: (title: string) => Promise<void>
+  saveVersion: (options?: { description?: string }) => Promise<void>
   undo: () => Promise<void>
   redo: () => Promise<void>
   addConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
   removeConnection: (connectionId: string, type: 'upstream' | 'downstream') => Promise<void>
 }
 
-export function useDocumentEventSourcing(documentId: string): DocumentEventSourcingState & DocumentEventSourcingActions {
-  const [documentState, setDocumentState] = useState<DocumentState | null>({
-    id: documentId,
-    title: 'Document Processing Chain Analysis',
-    content: '<h1>Document Processing Chain Analysis</h1><p>This document demonstrates the upstream and downstream connection system...</p>',
-    version: 1,
-    upstream: ['doc-source-1', 'doc-analysis-2'],
-    downstream: ['doc-summary-1', 'doc-report-2'],
-  })
-  const [eventHistory] = useState<any[]>([])
-  const [currentEventIndex] = useState(-1)
-  const [isLoading] = useState(false)
-  const [error] = useState<string | null>(null)
-  const [canUndo] = useState(false)
-  const [canRedo] = useState(false)
+// Document event API service
+class DocumentEventAPIService {
+  private baseUrl: string
 
-  const updateContent = useCallback(async (content: string) => {
-    if (documentState) {
-      setDocumentState(prev => prev ? { ...prev, content } : null)
-    }
-  }, [documentState])
+  constructor(baseUrl: string = '/api') {
+    this.baseUrl = baseUrl
+  }
 
-  const saveVersion = useCallback(async (options: { description?: string }) => {
-    console.log('Saving version with options:', options)
-  }, [])
-
-  const undo = useCallback(async () => {
-    console.log('Undo called')
-  }, [])
-
-  const redo = useCallback(async () => {
-    console.log('Redo called')
-  }, [])
-
-  const addConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
-    if (!documentState) return
-    
-    console.log('Adding connection:', connectionId, type)
-    
-    // Update the document state with the new connection
-    setDocumentState(prev => {
-      if (!prev) return null
-      
-      const connections = prev[type]
-      if (connections.includes(connectionId)) return prev
-      
-      return {
-        ...prev,
-        [type]: [...connections, connectionId],
-      }
+  async createDocumentEvent(event: DocumentEvent): Promise<DocumentEvent> {
+    const response = await fetch(`${this.baseUrl}/events/document`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: event.type,
+        payload: event.payload,
+        timestamp: event.timestamp?.toISOString(),
+        userId: event.userId,
+      }),
     })
-  }, [documentState])
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: { message: response.statusText } }))
+      throw new Error(`Failed to create document event: ${errorData.error?.message || response.statusText}`)
+    }
+
+    const result = await response.json()
+    return {
+      ...result.data,
+      timestamp: new Date(result.data.timestamp),
+    }
+  }
+
+  async getDocumentEvents(documentId: string, filters?: {
+    type?: string
+    typePrefix?: string
+    fromTimestamp?: Date
+    limit?: number
+  }): Promise<DocumentEvent[]> {
+    const params = new URLSearchParams()
+    params.append('documentId', documentId)
+    
+    if (filters?.type) params.append('type', filters.type)
+    if (filters?.typePrefix) params.append('typePrefix', filters.typePrefix)
+    if (filters?.fromTimestamp) params.append('fromTimestamp', filters.fromTimestamp.toISOString())
+    if (filters?.limit) params.append('limit', filters.limit.toString())
+
+    const response = await fetch(`${this.baseUrl}/events/document?${params}`)
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch document events: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    return result.data.map((event: any) => ({
+      ...event,
+      timestamp: new Date(event.timestamp),
+    }))
+  }
+}
+
+// Document state reducer - applies events to derive document state
+function reduceDocumentEvents(events: DocumentEvent[], initialState?: Partial<DocumentState>): DocumentState {
+  const defaultState: DocumentState = {
+    id: initialState?.id || '',
+    title: initialState?.title || 'New Document',
+    content: initialState?.content || '',
+    version: 1,
+    upstream: initialState?.upstream || [],
+    downstream: initialState?.downstream || [],
+    createdAt: initialState?.createdAt,
+    updatedAt: new Date(),
+  }
+
+  return events.reduce((state: DocumentState, event: DocumentEvent) => {
+    switch (event.type) {
+      case 'DOCUMENT_CONTENT_CHANGE': {
+        const { newContent } = event.payload
+        return {
+          ...state,
+          content: newContent,
+          updatedAt: event.timestamp,
+        }
+      }
+
+      case 'DOCUMENT_TITLE_CHANGE': {
+        const { newTitle } = event.payload
+        return {
+          ...state,
+          title: newTitle,
+          updatedAt: event.timestamp,
+        }
+      }
+
+      case 'DOCUMENT_VERSION_SAVE': {
+        const { versionNumber } = event.payload
+        return {
+          ...state,
+          version: Math.max(state.version, versionNumber),
+          updatedAt: event.timestamp,
+        }
+      }
+
+      case 'DOCUMENT_CONNECTION_CHANGE': {
+        const { connectionId, connectionType, action } = event.payload
+        const connections = state[connectionType]
+        
+        if (action === 'add' && !connections.includes(connectionId)) {
+          return {
+            ...state,
+            [connectionType]: [...connections, connectionId],
+            updatedAt: event.timestamp,
+          }
+        } else if (action === 'remove' && connections.includes(connectionId)) {
+          return {
+            ...state,
+            [connectionType]: connections.filter(id => id !== connectionId),
+            updatedAt: event.timestamp,
+          }
+        }
+        return state
+      }
+
+      default:
+        return state
+    }
+  }, defaultState)
+}
+
+// Performance optimizations
+interface EventBuffer {
+  events: DocumentEvent[]
+  lastFlushTime: number
+  pendingChanges: boolean
+}
+
+class DocumentEventBuffer {
+  private buffer: EventBuffer = {
+    events: [],
+    lastFlushTime: Date.now(),
+    pendingChanges: false,
+  }
+  private flushInterval: number = 1000 // 1 second
+  private maxBufferSize: number = 50
+  private onFlush: (events: DocumentEvent[]) => Promise<void>
+
+  constructor(onFlush: (events: DocumentEvent[]) => Promise<void>) {
+    this.onFlush = onFlush
+  }
+
+  addEvent(event: DocumentEvent): void {
+    this.buffer.events.push(event)
+    this.buffer.pendingChanges = true
+
+    // Flush immediately for critical events
+    if (DocumentEventUtils.isVersionEvent(event)) {
+      this.flush()
+      return
+    }
+
+    // Flush if buffer is full
+    if (this.buffer.events.length >= this.maxBufferSize) {
+      this.flush()
+      return
+    }
+
+    // Schedule flush if none pending
+    if (this.buffer.events.length === 1) {
+      setTimeout(() => this.flush(), this.flushInterval)
+    }
+  }
+
+  async flush(): Promise<void> {
+    if (!this.buffer.pendingChanges || this.buffer.events.length === 0) {
+      return
+    }
+
+    const eventsToFlush = [...this.buffer.events]
+    this.buffer.events = []
+    this.buffer.pendingChanges = false
+    this.buffer.lastFlushTime = Date.now()
+
+    try {
+      await this.onFlush(eventsToFlush)
+    } catch (error) {
+      console.error('Failed to flush document events:', error)
+      // Re-add events to buffer for retry
+      this.buffer.events.unshift(...eventsToFlush)
+      this.buffer.pendingChanges = true
+    }
+  }
+
+  destroy(): void {
+    if (this.buffer.pendingChanges) {
+      this.flush()
+    }
+  }
+}
+
+export function useDocumentEventSourcing(documentId: string): DocumentEventSourcingState & DocumentEventSourcingActions {
+  const [eventHistory, setEventHistory] = useState<DocumentEvent[]>([])
+  const [currentEventIndex, setCurrentEventIndex] = useState(-1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+  
+  const eventService = useRef(new DocumentEventAPIService())
+  const eventBuffer = useRef<DocumentEventBuffer | null>(null)
+  const lastContentRef = useRef('')
+  const versionCounter = useRef(1)
+
+  // Derive document state from events
+  const documentState = useMemo(() => {
+    const eventsToApply = eventHistory.slice(0, currentEventIndex + 1)
+    const initialState = {
+      id: documentId,
+      title: 'Document Processing Chain Analysis',
+      content: '<h1>Document Processing Chain Analysis</h1><p>This document demonstrates the upstream and downstream connection system...</p>',
+      upstream: ['doc-source-1', 'doc-analysis-2'],
+      downstream: ['doc-summary-1', 'doc-report-2'],
+    }
+    return reduceDocumentEvents(eventsToApply, initialState)
+  }, [eventHistory, currentEventIndex, documentId])
+  
+  // Undo/redo capabilities
+  const canUndo = currentEventIndex >= 0
+  const canRedo = currentEventIndex < eventHistory.length - 1
+
+  // Initialize event buffer
+  useEffect(() => {
+    const handleFlush = async (events: DocumentEvent[]) => {
+      try {
+        // Batch create events
+        const promises = events.map(event => eventService.current.createDocumentEvent(event))
+        await Promise.all(promises)
+      } catch (error) {
+        console.error('Failed to persist document events:', error)
+        throw error
+      }
+    }
+
+    eventBuffer.current = new DocumentEventBuffer(handleFlush)
+
+    return () => {
+      if (eventBuffer.current) {
+        eventBuffer.current.destroy()
+      }
+    }
+  }, [])
+
+  // Load initial events and start session
+  useEffect(() => {
+    const loadInitialEvents = async () => {
+      setIsLoading(true)
+      try {
+        const events = await eventService.current.getDocumentEvents(documentId, {
+          limit: 1000, // Load recent events
+        })
+        
+        if (events.length > 0) {
+          setEventHistory(events)
+          setCurrentEventIndex(events.length - 1)
+          
+          // Set initial content reference
+          const latestContent = reduceDocumentEvents(events, { id: documentId }).content
+          lastContentRef.current = latestContent
+        }
+
+        // Create session start event
+        const sessionEvent = DocumentEventFactory.createSessionEvent(
+          documentId,
+          'start',
+          {
+            sessionId,
+            initialContent: documentState?.content || '',
+          }
+        )
+        
+        if (eventBuffer.current) {
+          eventBuffer.current.addEvent(sessionEvent)
+        }
+        
+      } catch (err) {
+        console.warn('Failed to load initial document events (API may not be available):', err)
+        // Don't set error in development/testing environments
+        if (process.env.NODE_ENV === 'production') {
+          setError(err instanceof Error ? err.message : 'Failed to load document events')
+        }
+
+        // Initialize with minimal content
+        lastContentRef.current = documentState?.content || ''
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadInitialEvents()
+
+    // Cleanup on unmount - end session
+    return () => {
+      if (eventBuffer.current) {
+        const sessionEvent = DocumentEventFactory.createSessionEvent(
+          documentId,
+          'end',
+          {
+            sessionId,
+            finalContent: documentState?.content || '',
+          }
+        )
+        eventBuffer.current.addEvent(sessionEvent)
+        eventBuffer.current.destroy()
+      }
+    }
+  }, [documentId])
+
+  // Helper function to dispatch event
+  const dispatchEvent = useCallback(async (event: DocumentEvent, immediate: boolean = false) => {
+    try {
+      // Update local event history immediately for responsive UI
+      setEventHistory(prev => {
+        // If we're in the middle of history (after undo), truncate future events
+        const newHistory = currentEventIndex < prev.length - 1 
+          ? prev.slice(0, currentEventIndex + 1)
+          : prev
+        
+        return [...newHistory, event]
+      })
+      
+      setCurrentEventIndex(prev => prev + 1)
+
+      // Add to buffer for persistence
+      if (eventBuffer.current) {
+        eventBuffer.current.addEvent(event)
+        
+        // Flush immediately for critical events
+        if (immediate || DocumentEventUtils.isVersionEvent(event)) {
+          await eventBuffer.current.flush()
+        }
+      }
+    } catch (err) {
+      console.error('Failed to dispatch document event:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save document event')
+      throw err
+    }
+  }, [currentEventIndex])
+
+  // Content update with change detection
+  const updateContent = useCallback(async (content: string) => {
+    const previousContent = lastContentRef.current
+    
+    // Skip if content hasn't actually changed
+    if (previousContent === content) {
+      return
+    }
+
+    // Detect change type
+    let changeType: 'insert' | 'delete' | 'replace' = 'replace'
+    if (content.length > previousContent.length) {
+      changeType = 'insert'
+    } else if (content.length < previousContent.length) {
+      changeType = 'delete'
+    }
+
+    const event = DocumentEventFactory.createContentChangeEvent(
+      documentId,
+      previousContent,
+      content,
+      changeType
+    )
+    
+    lastContentRef.current = content
+    await dispatchEvent(event)
+  }, [documentId, dispatchEvent])
+
+  // Title update
+  const updateTitle = useCallback(async (title: string) => {
+    const previousTitle = documentState?.title || ''
+    
+    if (previousTitle === title) {
+      return
+    }
+
+    const event = DocumentEventFactory.createTitleChangeEvent(
+      documentId,
+      previousTitle,
+      title
+    )
+    
+    await dispatchEvent(event)
+  }, [documentId, documentState?.title, dispatchEvent])
+
+  // Save version with snapshot
+  const saveVersion = useCallback(async (options: { description?: string } = {}) => {
+    const currentContent = documentState?.content || ''
+    const versionNumber = versionCounter.current++
+    
+    const event = DocumentEventFactory.createVersionSaveEvent(
+      documentId,
+      versionNumber,
+      currentContent,
+      {
+        description: options.description || `Version ${versionNumber}`,
+      }
+    )
+    
+    await dispatchEvent(event, true) // Immediate flush for versions
+  }, [documentId, documentState?.content, dispatchEvent])
+
+  // Undo operation
+  const undo = useCallback(async () => {
+    if (!canUndo) return
+    
+    const contentBefore = documentState?.content || ''
+    
+    // Move to previous state
+    const newIndex = currentEventIndex - 1
+    setCurrentEventIndex(newIndex)
+    
+    // Get content after undo
+    const eventsAfterUndo = eventHistory.slice(0, newIndex + 1)
+    const stateAfterUndo = reduceDocumentEvents(eventsAfterUndo, { id: documentId })
+    const contentAfter = stateAfterUndo.content
+    
+    // Create undo event for tracking
+    const undoEvent = DocumentEventFactory.createUndoRedoEvent(
+      documentId,
+      'undo',
+      contentBefore,
+      contentAfter
+    )
+    
+    // Add undo event without affecting the main timeline
+    if (eventBuffer.current) {
+      eventBuffer.current.addEvent(undoEvent)
+    }
+    
+    lastContentRef.current = contentAfter
+  }, [canUndo, currentEventIndex, documentState?.content, eventHistory, documentId])
+
+  // Redo operation
+  const redo = useCallback(async () => {
+    if (!canRedo) return
+    
+    const contentBefore = documentState?.content || ''
+    
+    // Move to next state
+    const newIndex = currentEventIndex + 1
+    setCurrentEventIndex(newIndex)
+    
+    // Get content after redo
+    const eventsAfterRedo = eventHistory.slice(0, newIndex + 1)
+    const stateAfterRedo = reduceDocumentEvents(eventsAfterRedo, { id: documentId })
+    const contentAfter = stateAfterRedo.content
+    
+    // Create redo event for tracking
+    const redoEvent = DocumentEventFactory.createUndoRedoEvent(
+      documentId,
+      'redo',
+      contentBefore,
+      contentAfter
+    )
+    
+    // Add redo event without affecting the main timeline
+    if (eventBuffer.current) {
+      eventBuffer.current.addEvent(redoEvent)
+    }
+    
+    lastContentRef.current = contentAfter
+  }, [canRedo, currentEventIndex, documentState?.content, eventHistory, documentId])
+
+  // Connection management
+  const addConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
+    const event = DocumentEventFactory.createConnectionChangeEvent(
+      documentId,
+      connectionId,
+      type,
+      'add'
+    )
+    
+    await dispatchEvent(event)
+  }, [documentId, dispatchEvent])
 
   const removeConnection = useCallback(async (connectionId: string, type: 'upstream' | 'downstream') => {
-    if (!documentState) return
+    const event = DocumentEventFactory.createConnectionChangeEvent(
+      documentId,
+      connectionId,
+      type,
+      'remove'
+    )
     
-    console.log('Removing connection:', connectionId, type)
-    
-    // Update the document state by removing the connection
-    setDocumentState(prev => {
-      if (!prev) return null
-      
-      const connections = prev[type]
-      if (!connections.includes(connectionId)) return prev
-      
-      return {
-        ...prev,
-        [type]: connections.filter(id => id !== connectionId),
-      }
-    })
-  }, [documentState])
+    await dispatchEvent(event)
+  }, [documentId, dispatchEvent])
 
   return {
     documentState,
@@ -573,6 +1001,7 @@ export function useDocumentEventSourcing(documentId: string): DocumentEventSourc
     canUndo,
     canRedo,
     updateContent,
+    updateTitle,
     saveVersion,
     undo,
     redo,

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { FileText, Bot, Plus, Eye, Link2, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { FileText, Bot, Plus, Link2, X, ChevronDown, ChevronRight } from 'lucide-react'
 
 export interface RailConnection {
   id: string
