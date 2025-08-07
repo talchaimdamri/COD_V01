@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { X, Maximize2, Minimize2 } from 'lucide-react'
+import { X, Maximize2, Minimize2, History } from 'lucide-react'
 import { DOCUMENT_EDITOR_CONFIG } from '../../../tests/fixtures/document-editor'
 import { useDocumentEventSourcing } from '../../lib/eventSourcing'
+import useVersionManagement from '../../hooks/useVersionManagement'
 import DocumentEditorToolbar from './DocumentEditorToolbar'
 import DocumentRails from './DocumentRails'
 import TipTapEditor from './TipTapEditor'
+import VersionHistoryPanel from './VersionHistoryPanel'
+import VersionDiff from './VersionDiff'
+import VersionControls from './VersionControls'
 
 // Props interface for DocumentEditorModal
 export interface DocumentEditorModalProps {
@@ -28,6 +32,12 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [isAskAgentLoading, setIsAskAgentLoading] = useState(false)
   
+  // Version history state
+  const [isVersionHistoryVisible, setIsVersionHistoryVisible] = useState(false)
+  const [isDiffViewerVisible, setIsDiffViewerVisible] = useState(false)
+  const [diffVersionIds, setDiffVersionIds] = useState<{ source: string; target: string } | null>(null)
+  const [showRestoreConfirmation, setShowRestoreConfirmation] = useState<{ versionId: string; versionNumber: number } | null>(null)
+  
   // Use document event sourcing
   const {
     documentState,
@@ -44,6 +54,33 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     addConnection,
     removeConnection,
   } = useDocumentEventSourcing(documentId)
+  
+  // Version management hook
+  const {
+    versions,
+    currentVersion,
+    isLoading: versionsLoading,
+    error: versionsError,
+    loadVersions,
+    createSnapshot,
+    restoreVersion: restoreVersionApi,
+    deleteVersion,
+    compareVersions,
+    clearError: clearVersionsError,
+  } = useVersionManagement({
+    documentId,
+    onVersionRestored: (version) => {
+      console.log('Version restored:', version)
+      // Refresh document content
+      window.location.reload() // Temporary - should trigger content reload
+    },
+    onVersionDeleted: (versionId) => {
+      console.log('Version deleted:', versionId)
+    },
+    onError: (error) => {
+      console.error('Version management error:', error)
+    },
+  })
 
   const [documentTitle, setDocumentTitle] = useState(documentState?.title || 'New Document')
   
@@ -141,6 +178,9 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
       const description = `Manual save - ${new Date().toLocaleString()}`
       await saveVersion({ description })
       
+      // Also create a snapshot in the version system
+      await createSnapshot(description)
+      
       // Also call the onSave prop if provided
       if (onSave && documentState?.content) {
         onSave(documentState.content)
@@ -152,7 +192,7 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [saveVersion, onSave, documentState?.content])
+  }, [saveVersion, createSnapshot, onSave, documentState?.content])
 
   // Handle document events from TipTap
   const handleDocumentEvent = useCallback(async (event: any) => {
@@ -173,6 +213,54 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
   const handleEditorReady = useCallback((editorInstance: any) => {
     setEditor(editorInstance)
   }, [])
+  
+  // Version history handlers
+  const handleShowVersionHistory = useCallback(() => {
+    setIsVersionHistoryVisible(true)
+    loadVersions({ page: 1, reset: true })
+  }, [loadVersions])
+  
+  const handleHideVersionHistory = useCallback(() => {
+    setIsVersionHistoryVisible(false)
+  }, [])
+  
+  const handleCompareVersions = useCallback(async (fromVersionId: string, toVersionId: string) => {
+    setDiffVersionIds({ source: fromVersionId, target: toVersionId })
+    setIsDiffViewerVisible(true)
+  }, [])
+  
+  const handleCloseDiffViewer = useCallback(() => {
+    setIsDiffViewerVisible(false)
+    setDiffVersionIds(null)
+  }, [])
+  
+  const handleRestoreVersion = useCallback((versionId: string, versionNumber: number) => {
+    setShowRestoreConfirmation({ versionId, versionNumber })
+  }, [])
+  
+  const handleConfirmRestore = useCallback(async () => {
+    if (!showRestoreConfirmation) return
+    
+    const success = await restoreVersionApi(
+      showRestoreConfirmation.versionId,
+      `Restored to version ${showRestoreConfirmation.versionNumber}`
+    )
+    
+    if (success) {
+      setShowRestoreConfirmation(null)
+      setIsVersionHistoryVisible(false)
+    }
+  }, [showRestoreConfirmation, restoreVersionApi])
+  
+  const handleCancelRestore = useCallback(() => {
+    setShowRestoreConfirmation(null)
+  }, [])
+  
+  const handleDeleteVersion = useCallback(async (versionId: string) => {
+    if (window.confirm('Are you sure you want to delete this version? This action cannot be undone.')) {
+      await deleteVersion(versionId)
+    }
+  }, [deleteVersion])
 
   if (!isOpen) {
     return null
@@ -220,6 +308,35 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Version Controls */}
+            <VersionControls
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undo}
+              onRedo={redo}
+              onSaveVersion={handleSaveVersion}
+              onShowVersionHistory={handleShowVersionHistory}
+              currentVersion={currentVersion?.versionNumber}
+              totalVersions={versions.length}
+              isSaving={isSaving}
+              isHistoryVisible={isVersionHistoryVisible}
+              className="mr-2"
+            />
+            
+            {/* Version History Toggle */}
+            <button
+              data-testid="version-toggle"
+              onClick={isVersionHistoryVisible ? handleHideVersionHistory : handleShowVersionHistory}
+              className={`p-2 rounded-lg transition-colors ${
+                isVersionHistoryVisible 
+                  ? 'bg-purple-100 text-purple-700' 
+                  : 'hover:bg-gray-200 text-gray-700'
+              }`}
+              aria-label="Toggle version history"
+            >
+              <History size={16} />
+            </button>
+            
             {/* Maximize/Restore Button */}
             {isMaximized ? (
               <button
@@ -258,6 +375,18 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
           data-testid="modal-body"
           className="flex-1 flex overflow-hidden"
         >
+          {/* Version History Panel */}
+          {isVersionHistoryVisible && (
+            <VersionHistoryPanel
+              documentId={documentId}
+              isVisible={isVersionHistoryVisible}
+              onClose={handleHideVersionHistory}
+              onRestoreVersion={handleRestoreVersion}
+              onCompareVersions={handleCompareVersions}
+              onDeleteVersion={handleDeleteVersion}
+              className="w-80 flex-shrink-0"
+            />
+          )}
           {isLoading ? (
             <div data-testid="editor-loading" className="flex-1 flex items-center justify-center">
               <div className="text-gray-500">Loading document...</div>
@@ -388,14 +517,66 @@ const DocumentEditorModal: React.FC<DocumentEditorModalProps> = ({
               Document ID: {documentId}
             </div>
             <div className="flex items-center gap-4 text-xs text-gray-500">
-              <span>Version {documentState?.version || 1}</span>
+              <span>Version {currentVersion?.versionNumber || documentState?.version || 1}</span>
               <span>Events: {eventHistory.length}</span>
               <span>Words: {documentState?.content ? documentState.content.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(w => w.length > 0).length : 0}</span>
               <span>Last updated: {documentState?.updatedAt ? new Date(documentState.updatedAt).toLocaleTimeString() : 'Never'}</span>
+              {versions.length > 0 && <span>Versions: {versions.length}</span>}
             </div>
           </div>
         </footer>
       </div>
+      
+      {/* Version Diff Viewer */}
+      {isDiffViewerVisible && diffVersionIds && (
+        <VersionDiff
+          documentId={documentId}
+          sourceVersionId={diffVersionIds.source}
+          targetVersionId={diffVersionIds.target}
+          isVisible={isDiffViewerVisible}
+          onClose={handleCloseDiffViewer}
+          onRestoreVersion={(versionId) => {
+            const version = versions.find(v => v.id === versionId)
+            if (version) {
+              handleRestoreVersion(versionId, version.versionNumber)
+            }
+          }}
+        />
+      )}
+      
+      {/* Restore Confirmation Dialog */}
+      {showRestoreConfirmation && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50">
+          <div 
+            data-testid="restore-confirmation"
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Restore version {showRestoreConfirmation.versionNumber}?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              This will create a new version with the content from version {showRestoreConfirmation.versionNumber}. 
+              Your current changes will be preserved in the version history.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                data-testid="cancel-restore"
+                onClick={handleCancelRestore}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="confirm-restore"
+                onClick={handleConfirmRestore}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Restore Version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
