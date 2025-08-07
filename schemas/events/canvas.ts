@@ -10,12 +10,12 @@ import { EventSchema } from './event'
  */
 
 // Common validation schemas
-const PositionSchema = z.object({
+export const PositionSchema = z.object({
   x: z.number().finite('X coordinate must be a finite number'),
   y: z.number().finite('Y coordinate must be a finite number'),
 }).describe('2D coordinate position on the canvas')
 
-const NodeTypeSchema = z.enum(['document', 'agent'], {
+export const NodeTypeSchema = z.enum(['document', 'agent'], {
   errorMap: () => ({ message: 'Node type must be either "document" or "agent"' })
 }).describe('Type of canvas node')
 

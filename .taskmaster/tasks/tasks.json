@@ -266,8 +266,63 @@
         "dependencies": [
           5
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create DocumentNode SVG component structure",
+            "description": "Build the basic DocumentNode component with rounded rectangle SVG structure, document icon, and text rendering using foreignObject",
+            "dependencies": [],
+            "details": "Create DocumentNode.tsx component with SVG g element containing rounded rect, document icon SVG path, and foreignObject for text overflow handling. Implement proper TypeScript interfaces for props including id, title, position, and dimensions. Set up basic visual styling with rounded corners and document icon placeholder.",
+            "status": "pending",
+            "testStrategy": "Unit tests for component rendering, props validation, SVG structure verification, and text overflow handling with foreignObject"
+          },
+          {
+            "id": 2,
+            "title": "Create AgentNode SVG component structure",
+            "description": "Build the AgentNode component with circular/hexagonal SVG shape, agent icon, and model indicator display",
+            "dependencies": [],
+            "details": "Create AgentNode.tsx component with SVG g element containing circular or hexagonal path, agent icon SVG, and model indicator text. Implement TypeScript interfaces for agent-specific props including model type, agent name, and visual state. Add distinctive styling to differentiate from DocumentNode.",
+            "status": "pending",
+            "testStrategy": "Unit tests for component rendering, hexagonal/circular shape generation, model indicator display, and agent icon rendering"
+          },
+          {
+            "id": 3,
+            "title": "Implement drag behavior for both node types",
+            "description": "Add SVG transform-based dragging functionality with mouse and touch event handling for DocumentNode and AgentNode components",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "Implement useDrag custom hook with mouse and touch event handlers. Add SVG transform attribute manipulation for position updates. Handle drag start, drag move, and drag end events with proper event delegation. Integrate with Canvas component's coordinate system and ensure smooth dragging performance.",
+            "status": "pending",
+            "testStrategy": "Unit tests for drag event handling, SVG transform updates, coordinate calculations, and integration tests for Canvas interaction"
+          },
+          {
+            "id": 4,
+            "title": "Add selection states and hover effects",
+            "description": "Implement visual feedback for node selection, hover states, and connection points visibility",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "Add selection state management with visual indicators (border highlighting, color changes). Implement hover effects with CSS transitions and SVG styling. Add connection points that become visible on hover or selection. Create reusable selection logic that works with Canvas component's selection system.",
+            "status": "pending",
+            "testStrategy": "Unit tests for selection state changes, hover effect triggers, connection point visibility, and visual styling verification"
+          },
+          {
+            "id": 5,
+            "title": "Implement collision detection and snap-to-grid functionality",
+            "description": "Add collision detection between nodes and snap-to-grid behavior during dragging operations",
+            "dependencies": [
+              "6.3",
+              "6.4"
+            ],
+            "details": "Implement collision detection algorithm using bounding box calculations for node overlap prevention. Add snap-to-grid functionality with configurable grid size that activates during drag operations. Integrate with Canvas component's grid system and ensure nodes maintain proper spacing and alignment.",
+            "status": "pending",
+            "testStrategy": "Unit tests for collision detection algorithms, snap-to-grid calculations, boundary checking, and integration tests for multi-node scenarios"
+          }
+        ]
       },
       {
         "id": 7,
@@ -545,7 +600,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-07T13:15:12.883Z",
+      "updated": "2025-08-07T17:12:43.258Z",
       "description": "Tasks for master context"
     }
   }

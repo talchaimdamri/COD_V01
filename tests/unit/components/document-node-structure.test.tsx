@@ -21,78 +21,32 @@ import {
   NODE_SELECTORS,
   nodeTestUtils
 } from '../../fixtures/nodes'
+import { DocumentNode } from '../../../src/components/canvas/nodes'
 
-// Mock DocumentNode component (will be created after tests fail)
-const DocumentNode = vi.fn(({ node, ...props }) => (
-  <g 
-    data-testid="document-node"
-    data-node-id={node.id}
-    data-node-type="document"
-    transform={`translate(${node.position.x}, ${node.position.y})`}
-    {...props}
-  >
-    {/* Rounded rectangle shape */}
-    <rect
-      data-testid="document-shape"
-      x={-NODE_CONFIG.document.width / 2}
-      y={-NODE_CONFIG.document.height / 2}
-      width={NODE_CONFIG.document.width}
-      height={NODE_CONFIG.document.height}
-      rx={NODE_CONFIG.document.borderRadius}
-      ry={NODE_CONFIG.document.borderRadius}
-      fill={node.selected ? NODE_CONFIG.document.colors.selected.fill : NODE_CONFIG.document.colors.default.fill}
-      stroke={node.selected ? NODE_CONFIG.document.colors.selected.stroke : NODE_CONFIG.document.colors.default.stroke}
-      strokeWidth={NODE_CONFIG.document.strokeWidth}
-    />
-    
-    {/* Document icon */}
-    <g data-testid="document-icon" transform="translate(-8, -20)">
-      <rect width="16" height="20" fill="currentColor" />
-      <path d="M12 0L16 4v16H0V0h12z" fill="white" />
-    </g>
-    
-    {/* Title text with foreignObject */}
-    <foreignObject
-      data-testid="document-title"
-      x={-NODE_CONFIG.document.width / 2 + 8}
-      y={NODE_CONFIG.document.height / 2 - 32}
-      width={NODE_CONFIG.document.width - 16}
-      height={24}
-    >
-      <div 
-        style={{ 
-          color: NODE_CONFIG.document.colors.default.text,
-          fontSize: '12px',
-          fontWeight: '500',
-          textAlign: 'center',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}
-      >
-        {node.title}
-      </div>
-    </foreignObject>
-    
-    {/* Status indicator */}
-    {node.data.status && (
-      <circle
-        data-testid="document-status"
-        cx={NODE_CONFIG.document.width / 2 - 8}
-        cy={-NODE_CONFIG.document.height / 2 + 8}
-        r="4"
-        fill={node.data.status === 'published' ? '#10b981' : node.data.status === 'review' ? '#f59e0b' : '#6b7280'}
-      />
-    )}
-  </g>
-))
+// Convert fixtures to match DocumentNode props
+const convertFixtureToProps = (fixture) => ({
+  id: fixture.id,
+  type: fixture.type,
+  position: fixture.position,
+  title: fixture.title,
+  data: fixture.data,
+  visualState: {
+    selected: fixture.selected || false,
+    dragging: fixture.dragging || false,
+    hovered: fixture.hovered || false,
+    focused: false
+  }
+})
 
 // Wrapper for SVG rendering
-const DocumentNodeWrapper = ({ node, ...props }) => (
-  <svg width="200" height="150" viewBox="0 0 200 150">
-    <DocumentNode node={node} {...props} />
-  </svg>
-)
+const DocumentNodeWrapper = ({ node, ...props }) => {
+  const nodeProps = convertFixtureToProps(node)
+  return (
+    <svg width="200" height="150" viewBox="0 0 200 150">
+      <DocumentNode {...nodeProps} {...props} />
+    </svg>
+  )
+}
 
 describe('DocumentNode Component Structure', () => {
   describe('Basic Rendering', () => {

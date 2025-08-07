@@ -21,6 +21,7 @@ import {
   NODE_SELECTORS,
   nodeTestUtils
 } from '../../fixtures/nodes'
+import { AgentNode } from '../../../src/components/canvas/nodes'
 
 // Helper function to generate hexagon path
 const generateHexagonPath = (radius: number) => {
@@ -32,123 +33,29 @@ const generateHexagonPath = (radius: number) => {
   return `M${points.join(' L')} Z`
 }
 
-// Mock AgentNode component (will be created after tests fail)
-const AgentNode = vi.fn(({ node, ...props }) => (
-  <g 
-    data-testid="agent-node"
-    data-node-id={node.id}
-    data-node-type="agent"
-    transform={`translate(${node.position.x}, ${node.position.y})`}
-    {...props}
-  >
-    {/* Hexagonal shape */}
-    <path
-      data-testid="agent-shape"
-      d={generateHexagonPath(NODE_CONFIG.agent.radius)}
-      fill={node.selected ? NODE_CONFIG.agent.colors.selected.fill : NODE_CONFIG.agent.colors.default.fill}
-      stroke={node.selected ? NODE_CONFIG.agent.colors.selected.stroke : NODE_CONFIG.agent.colors.default.stroke}
-      strokeWidth={NODE_CONFIG.agent.strokeWidth}
-    />
-    
-    {/* Agent/CPU icon */}
-    <g data-testid="agent-icon" transform="translate(-9, -12)">
-      {/* CPU icon paths */}
-      <rect x="0" y="4" width="18" height="12" fill="currentColor" rx="2" />
-      <rect x="2" y="6" width="14" height="8" fill="white" />
-      <rect x="4" y="8" width="10" height="4" fill="currentColor" />
-      {/* Connection pins */}
-      <rect x="-2" y="7" width="2" height="2" fill="currentColor" />
-      <rect x="-2" y="11" width="2" height="2" fill="currentColor" />
-      <rect x="18" y="7" width="2" height="2" fill="currentColor" />
-      <rect x="18" y="11" width="2" height="2" fill="currentColor" />
-      <rect x="7" y="-2" width="2" height="2" fill="currentColor" />
-      <rect x="11" y="-2" width="2" height="2" fill="currentColor" />
-      <rect x="7" y="18" width="2" height="2" fill="currentColor" />
-      <rect x="11" y="18" width="2" height="2" fill="currentColor" />
-    </g>
-    
-    {/* Agent title */}
-    <text
-      data-testid="agent-title"
-      x={0}
-      y={NODE_CONFIG.agent.radius + 16}
-      textAnchor="middle"
-      fontSize="12"
-      fontWeight="500"
-      fill={NODE_CONFIG.agent.colors.default.text}
-      style={{
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }}
-    >
-      {node.title}
-    </text>
-    
-    {/* Model indicator */}
-    <text
-      data-testid="agent-model"
-      x={0}
-      y={NODE_CONFIG.agent.radius + 30}
-      textAnchor="middle"
-      fontSize="9"
-      fill="#6b7280"
-      style={{
-        opacity: 0.8
-      }}
-    >
-      {node.data.model}
-    </text>
-    
-    {/* Status indicator */}
-    <circle
-      data-testid="agent-status"
-      cx={NODE_CONFIG.agent.radius - 8}
-      cy={-NODE_CONFIG.agent.radius + 8}
-      r="5"
-      fill={
-        node.data.status === 'processing' ? '#f59e0b' : 
-        node.data.status === 'error' ? '#ef4444' : 
-        '#10b981'
-      }
-      stroke="white"
-      strokeWidth="2"
-    />
-    
-    {/* Processing animation indicator */}
-    {node.data.status === 'processing' && (
-      <circle
-        data-testid="processing-indicator"
-        cx={NODE_CONFIG.agent.radius - 8}
-        cy={-NODE_CONFIG.agent.radius + 8}
-        r="8"
-        fill="none"
-        stroke="#f59e0b"
-        strokeWidth="2"
-        opacity="0.6"
-      >
-        <animate
-          attributeName="r"
-          values="5;12;5"
-          dur="2s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="opacity"
-          values="0.6;0.2;0.6"
-          dur="2s"
-          repeatCount="indefinite"
-        />
-      </circle>
-    )}
-  </g>
-))
-
+// Convert fixtures to match AgentNode props
+const convertFixtureToProps = (fixture) => ({
+  id: fixture.id,
+  type: fixture.type,
+  position: fixture.position,
+  title: fixture.title,
+  data: fixture.data,
+  visualState: {
+    selected: fixture.selected || false,
+    dragging: fixture.dragging || false,
+    hovered: fixture.hovered || false,
+    focused: false
+  }
+})
 // Wrapper for SVG rendering
-const AgentNodeWrapper = ({ node, ...props }) => (
-  <svg width="200" height="150" viewBox="0 0 200 150">
-    <AgentNode node={node} {...props} />
-  </svg>
-)
+const AgentNodeWrapper = ({ node, ...props }) => {
+  const nodeProps = convertFixtureToProps(node)
+  return (
+    <svg width="200" height="150" viewBox="0 0 200 150">
+      <AgentNode {...nodeProps} {...props} />
+    </svg>
+  )
+}
 
 describe('AgentNode Component Structure', () => {
   describe('Basic Rendering', () => {

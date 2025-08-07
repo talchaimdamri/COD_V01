@@ -1,5 +1,65 @@
 # Schema Changelog
 
+## Version 1.3.0 (2025-01-07)
+
+### Added
+
+- **Node Component Schemas** - Comprehensive UI component validation for DocumentNode and AgentNode
+  - `api/nodes.ts` - Complete schema layer for node component props, states, and interactions
+  - Visual state management schemas (selection, hover, dragging, focus)
+  - Drag behavior state tracking with position and constraint handling
+  - Grid snapping and collision detection configuration schemas
+  - Color scheme validation for all node visual states
+  - Animation configuration for smooth transitions
+
+### Features
+
+- **DocumentNode Props** - Full validation for document node component properties
+  - Rounded rectangle dimensions with border radius validation
+  - Document-specific data schemas (content, status, word count)
+  - Status-based visual indicators (draft, review, published)
+  - Selection and hover state management
+- **AgentNode Props** - Complete validation for agent node component properties
+  - Hexagonal shape with configurable radius
+  - Agent-specific data schemas (model, prompt, temperature, status)
+  - Processing animation configuration and status indicators
+  - CPU/processor icon positioning and styling
+- **Interaction Schemas** - Mouse, touch, and keyboard event validation
+  - Drag gesture configuration with distance and duration limits
+  - Multi-touch and modifier key support
+  - Accessibility compliance with focus and keyboard navigation
+- **Visual State Management** - Comprehensive state tracking for node appearance
+  - Selection state with multi-select support
+  - Hover effects with connection point visibility
+  - Drag state with smooth position interpolation
+  - Focus management for keyboard navigation
+- **Grid and Collision Systems** - Positioning and constraint validation
+  - Grid snap configuration with size and threshold settings
+  - Collision detection with minimum distance and buffer settings
+  - Boundary constraints to prevent nodes from leaving viewport
+  - Performance optimization settings for large node counts
+
+### Schema Validation
+
+- **Component Props** - Full runtime validation with detailed error reporting
+- **Factory Functions** - Utilities for creating well-formed node props with defaults
+- **Type Guards** - Runtime type checking for DocumentNode vs AgentNode props
+- **Visual State Validation** - Ensures consistent appearance across all node states
+
+### Integration Support
+
+- **Test Fixture Compatibility** - Schemas align with existing test fixture structures
+- **Canvas Event Integration** - Works seamlessly with canvas event sourcing system
+- **Database Schema Alignment** - Node data schemas extend existing database entities
+- **API Layer Support** - Provides validation for API requests involving node operations
+
+### Migration Notes
+
+- Node component schemas extend existing Position and NodeType from canvas events
+- Backward compatible with all existing fixture data and test scenarios
+- No breaking changes to existing database or event schemas
+- Gradual migration path for replacing hardcoded component props with validated schemas
+
 ## Version 1.2.0 (2025-01-05)
 
 ### Added
