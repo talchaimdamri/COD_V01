@@ -266,7 +266,7 @@
         "dependencies": [
           5
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -274,7 +274,7 @@
             "description": "Build the basic DocumentNode component with rounded rectangle SVG structure, document icon, and text rendering using foreignObject",
             "dependencies": [],
             "details": "Create DocumentNode.tsx component with SVG g element containing rounded rect, document icon SVG path, and foreignObject for text overflow handling. Implement proper TypeScript interfaces for props including id, title, position, and dimensions. Set up basic visual styling with rounded corners and document icon placeholder.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for component rendering, props validation, SVG structure verification, and text overflow handling with foreignObject"
           },
           {
@@ -283,7 +283,7 @@
             "description": "Build the AgentNode component with circular/hexagonal SVG shape, agent icon, and model indicator display",
             "dependencies": [],
             "details": "Create AgentNode.tsx component with SVG g element containing circular or hexagonal path, agent icon SVG, and model indicator text. Implement TypeScript interfaces for agent-specific props including model type, agent name, and visual state. Add distinctive styling to differentiate from DocumentNode.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for component rendering, hexagonal/circular shape generation, model indicator display, and agent icon rendering"
           },
           {
@@ -295,7 +295,7 @@
               "6.2"
             ],
             "details": "Implement useDrag custom hook with mouse and touch event handlers. Add SVG transform attribute manipulation for position updates. Handle drag start, drag move, and drag end events with proper event delegation. Integrate with Canvas component's coordinate system and ensure smooth dragging performance.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for drag event handling, SVG transform updates, coordinate calculations, and integration tests for Canvas interaction"
           },
           {
@@ -307,7 +307,7 @@
               "6.2"
             ],
             "details": "Add selection state management with visual indicators (border highlighting, color changes). Implement hover effects with CSS transitions and SVG styling. Add connection points that become visible on hover or selection. Create reusable selection logic that works with Canvas component's selection system.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for selection state changes, hover effect triggers, connection point visibility, and visual styling verification"
           },
           {
@@ -319,7 +319,7 @@
               "6.4"
             ],
             "details": "Implement collision detection algorithm using bounding box calculations for node overlap prevention. Add snap-to-grid functionality with configurable grid size that activates during drag operations. Integrate with Canvas component's grid system and ensure nodes maintain proper spacing and alignment.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for collision detection algorithms, snap-to-grid calculations, boundary checking, and integration tests for multi-node scenarios"
           }
         ]
@@ -600,7 +600,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-07T17:12:43.258Z",
+      "updated": "2025-08-07T19:59:38.779Z",
       "description": "Tasks for master context"
     }
   }
