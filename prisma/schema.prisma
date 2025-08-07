@@ -17,11 +17,19 @@ model Event {
   actorId    String   @map("actor_id") @db.VarChar(255)
   eventType  String   @map("event_type") @db.VarChar(100)
   payload    Json     @db.JsonB
+  // Version tracking fields
+  documentId String?  @map("document_id") @db.VarChar(255)
+  versionId  String?  @map("version_id") @db.VarChar(255)
+  // Event sequencing and correlation
+  correlationId String? @map("correlation_id") @db.VarChar(255)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([eventType])
   @@index([timestamp])
   @@index([actorId])
+  @@index([documentId])
+  @@index([versionId])
+  @@index([correlationId])
   @@map("events")
 }
 
@@ -41,10 +49,46 @@ model Document {
 
   // Relationships
   chains ChainNode[]
+  documentVersions DocumentVersion[]
 
   @@index([id, createdAt(sort: Desc)])
   @@index([basedOn])
   @@map("documents")
+}
+
+// Document Version Snapshots table - For enhanced version history and undo/redo
+model DocumentVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  versionNumber Int    @map("version_number")
+  title       String   @db.VarChar(500)
+  content     String   @db.Text // Store as plain text for diff calculations
+  contentHash String   @map("content_hash") @db.VarChar(64) // SHA-256 for deduplication
+  description String?  @db.VarChar(1000)
+  // Statistics
+  wordCount   Int      @map("word_count") @default(0)
+  charCount   Int      @map("char_count") @default(0)
+  // Performance optimization fields
+  isSnapshot  Boolean  @map("is_snapshot") @default(false) // Mark major snapshots for performance
+  eventSeqStart Int?   @map("event_seq_start") // First event sequence for this version
+  eventSeqEnd   Int?   @map("event_seq_end")   // Last event sequence for this version
+  // Compression for large versions
+  isCompressed Boolean @map("is_compressed") @default(false)
+  compressionAlgo String? @map("compression_algo") @db.VarChar(20) // 'gzip', 'lz4', etc.
+  // Metadata
+  createdBy   String?  @map("created_by") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relationships
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, createdAt(sort: Desc)])
+  @@index([documentId, versionNumber(sort: Desc)])
+  @@index([contentHash]) // For deduplication
+  @@index([isSnapshot]) // For quick snapshot retrieval
+  @@index([eventSeqStart, eventSeqEnd]) // For event replay optimization
+  @@map("document_versions")
 }
 
 // Agents table - AI agent definitions

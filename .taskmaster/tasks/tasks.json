@@ -389,7 +389,7 @@
         "id": 11,
         "title": "Implement Document Version History and Undo/Redo",
         "description": "Build version control system with event sourcing for document changes and UI controls following TDD methodology",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           10,
           2
@@ -402,7 +402,7 @@
             "id": 1,
             "title": "Create comprehensive test suite for version history system",
             "description": "Use test-runner sub-agent to create unit tests and E2E tests for version control functionality",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "details": "Create unit tests UT-UR-01 (undo/redo operations), UT-UR-02 (version restoration), UT-SS-01 (event sourcing integrity). Create E2E tests E2E-VS-01 (version list UI interactions), E2E-VS-02 (full version history workflow). Tests should cover event creation, version restoration, diff calculation, and UI interactions.",
             "testStrategy": ""
@@ -545,7 +545,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-07T07:39:13.609Z",
+      "updated": "2025-08-07T08:28:45.347Z",
       "description": "Tasks for master context"
     }
   }
