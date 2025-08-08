@@ -1,5 +1,116 @@
 # Schema Changelog
 
+## Version 1.5.0 (2025-01-08)
+
+### Added
+
+- **Sidebar Object Library Schemas** - Complete schema layer for Task 8 enhanced sidebar functionality
+  - `api/sidebar.ts` - Comprehensive sidebar configuration, state management, and object metadata schemas
+  - Collapsible sidebar with resize functionality and persistent state management
+  - Virtualized list components for performance optimization with large datasets
+  - Rich metadata display schemas for Chains, Documents, and Agents with thumbnails, badges, and status indicators
+  - Search and filtering functionality with configurable options and real-time results
+  - Drag-and-drop functionality with HTML5 API integration and visual feedback
+  - Section-based organization with customizable layouts and theming
+
+### Features
+
+- **Sidebar Layout Management** - Comprehensive layout and state persistence
+  - SidebarLayoutSchema with configurable width, collapse state, and resize constraints
+  - Persistent state management with localStorage integration
+  - Collapsible sections with individual configuration and ordering
+  - Theme customization with color schemes and visual consistency
+  - Global search functionality with debounced input and configurable fields
+- **Rich Object Metadata** - Detailed metadata schemas for all sidebar object types
+  - ChainMetadataSchema with node/edge counts, status tracking, and execution state
+  - DocumentMetadataSchema with file type detection, word counts, and version management
+  - AgentMetadataSchema with AI model info, capability lists, and performance metrics
+  - Visual badges system for status indicators and categorization
+  - Thumbnail and preview image support for visual object identification
+- **Virtualization Support** - Performance optimization for large datasets
+  - VirtualListConfigSchema with configurable item heights and overscan settings
+  - Batch loading and caching strategies for optimal memory usage
+  - Smooth scrolling and scroll-to-index functionality
+  - Performance monitoring with render time and memory usage tracking
+  - @tanstack/react-virtual integration patterns and configuration
+- **Search and Filtering** - Advanced search and filter capabilities
+  - SearchConfigSchema with field-specific search, fuzzy matching, and highlighting
+  - FilterStateSchema supporting multiple filter types (select, date, number, boolean)
+  - Real-time filtering with debounced input and result count tracking
+  - Multi-field search across name, description, tags, and content
+  - Filter persistence and state management across sessions
+- **Drag-and-Drop System** - HTML5 drag-and-drop with visual feedback
+  - DragDataSchema for structured data transfer with object metadata
+  - Visual feedback configuration with preview scaling and drop zone highlighting
+  - Canvas integration for creating nodes from dragged sidebar objects
+  - Drop target validation and behavior customization
+  - Performance optimization with event throttling and GPU acceleration
+- **Section Management** - Flexible sidebar section configuration
+  - Individual section collapse states and visibility controls
+  - Customizable section ordering and icon management
+  - Per-section search and filtering with independent state
+  - Loading states and error handling for section data
+  - Virtual list support per section for optimal performance
+
+### Schema Integration
+
+- **Canvas Event Compatibility** - Seamless integration with existing canvas system
+  - Reuses PositionSchema and NodeTypeSchema from canvas events for consistency
+  - Compatible with existing drag-and-drop patterns from node components
+  - Integrates with canvas node creation through drag-and-drop data transfer
+  - Maintains event sourcing compatibility for undo/redo functionality
+- **Database Schema Alignment** - Extends existing entity patterns
+  - Chain metadata builds on existing ChainSchema from database layer
+  - Document and Agent metadata align with existing database entity structures
+  - Object ID patterns consistent with existing node and edge identification
+  - Metadata storage compatible with existing flexible data patterns
+- **Performance Optimization** - Built for scale and responsiveness
+  - Virtual list configuration optimized for @tanstack/react-virtual integration
+  - Drag operations throttled and GPU-accelerated for smooth interaction
+  - Search operations debounced and result-limited for responsive UI
+  - Memory management through caching strategies and item lifecycle management
+
+### Sidebar System Constants
+
+- **Layout Constraints** - Sidebar sizing and interaction limits
+  - Width constraints (200-800px) with configurable min/max values
+  - Collapsed width settings (40-80px) for icon-only display
+  - Resize handle dimensions and interaction zones
+  - Section ordering and visibility management constants
+- **Performance Limits** - Optimization thresholds and batch sizes
+  - Virtual list item heights (20-200px) and overscan settings (1-50 items)
+  - Search configuration with term length (1-10 chars) and debounce (100-2000ms)
+  - Filter result limits (10-1000 items) and cache sizes (100-10000 items)
+  - Drag operation throttling (16-200ms) and preview size limits (50-500px)
+- **Type Safety** - Runtime validation and compile-time checking
+  - ObjectType enum: 'chain' | 'document' | 'agent'
+  - Filter types: 'select' | 'multiselect' | 'date' | 'daterange' | 'number' | 'boolean'
+  - Status enums for chains, documents, and agents with appropriate validation
+  - Comprehensive error messages for validation failures and configuration issues
+
+### Factory Functions and Utilities
+
+- **SidebarFactory** - Pre-configured object creation utilities
+  - createDefaultConfig() for standard three-section layout (Chains, Documents, Agents)
+  - createVirtualListConfig() with performance-optimized defaults
+  - createSearchConfig() with common field configurations
+  - createDragDropConfig() with HTML5 API and visual feedback defaults
+  - Metadata factory functions for all object types with sensible defaults
+- **SidebarValidation** - Comprehensive validation and type checking utilities
+  - validateConfig() with detailed error reporting and performance warnings
+  - Type guards for drag data and sidebar object items
+  - Performance validation for virtual list configurations
+  - Configuration consistency checking and duplicate detection
+
+### Migration Notes
+
+- Sidebar schemas extend existing Canvas and Node schemas with no breaking changes
+- Object metadata schemas align with existing database entity patterns
+- Drag-and-drop data format compatible with existing canvas node creation
+- Virtual list configuration designed for gradual adoption with fallback to standard lists
+- Search and filter state can be persisted using existing localStorage patterns
+- All schemas backward compatible with current Sidebar.tsx implementation
+
 ## Version 1.4.0 (2025-01-07)
 
 ### Added

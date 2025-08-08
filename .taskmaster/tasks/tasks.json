@@ -404,8 +404,62 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create collapsible sidebar container with resize functionality",
+            "description": "Build the main sidebar container component with collapse/expand toggle, fixed 320px width, and drag resize handle",
+            "dependencies": [],
+            "details": "Create Sidebar.tsx component with useState for collapsed state, CSS transitions for smooth animations, resize handle with mouse event handlers for width adjustment, and proper z-index layering. Include sidebar toggle button and maintain state persistence in localStorage.",
+            "status": "pending",
+            "testStrategy": "Test collapse/expand animations, verify resize handle drag functionality, test width constraints (min/max), validate state persistence across page reloads"
+          },
+          {
+            "id": 2,
+            "title": "Implement virtualized list components for performance optimization",
+            "description": "Set up @tanstack/react-virtual for efficient rendering of large lists in each sidebar section",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Install and configure @tanstack/react-virtual library. Create VirtualizedList component wrapper with dynamic item sizing, scroll restoration, and viewport optimization. Implement list item recycling for chains, documents, and agents sections with proper key management.",
+            "status": "pending",
+            "testStrategy": "Performance test with 1000+ items, verify smooth scrolling, test memory usage optimization, validate item recycling behavior"
+          },
+          {
+            "id": 3,
+            "title": "Build sidebar section components for Chains, Documents, and Agents",
+            "description": "Create individual section components with headers, icons, search bars, and list containers for each object type",
+            "dependencies": [
+              "8.2"
+            ],
+            "details": "Create SidebarSection.tsx generic component and specific components: ChainsSection, DocumentsSection, AgentsSection. Each section includes collapsible header, search/filter input, item count display, and virtualized list integration. Add proper TypeScript interfaces for each object type.",
+            "status": "pending",
+            "testStrategy": "Test section collapse/expand, verify search functionality, validate item filtering, test empty states and loading indicators"
+          },
+          {
+            "id": 4,
+            "title": "Implement drag-and-drop functionality from sidebar to canvas",
+            "description": "Add drag-and-drop capabilities to sidebar items with visual feedback and canvas drop zone integration",
+            "dependencies": [
+              "8.3"
+            ],
+            "details": "Implement HTML5 drag-and-drop API with custom drag preview images, drag ghost elements, and drop zone highlighting. Create drag data transfer with object metadata, integrate with existing Canvas component drop handlers, and add visual feedback during drag operations.",
+            "status": "pending",
+            "testStrategy": "Test drag initiation from sidebar items, verify drag preview rendering, test drop zone detection on canvas, validate data transfer accuracy"
+          },
+          {
+            "id": 5,
+            "title": "Add search, filtering, and metadata display features",
+            "description": "Implement advanced search functionality, filtering options, and rich metadata display for sidebar items",
+            "dependencies": [
+              "8.4"
+            ],
+            "details": "Create SearchBar component with debounced input, implement fuzzy search using Fuse.js or similar, add filter options (by type, status, date), and rich item display with thumbnails, descriptions, and metadata badges. Include recent items and favorites functionality.\n<info added on 2025-08-08T08:23:47.478Z>\nThe comprehensive Zod schemas for the Left Sidebar Object Library system have been successfully created and are already implemented in the codebase:\n\n**Completed Schemas in `/Users/talchaimdamri/projects/chain of docs/COD_V01/schemas/api/sidebar.ts`:**\n\n1. **SidebarConfigSchema** - Complete sidebar configuration with layout, sections, theme, and global search\n2. **SidebarObjectItemSchema** - Base schema for all sidebar items (chains, documents, agents)\n3. **ChainMetadataSchema** - Rich metadata for chain objects with node counts, status, badges\n4. **DocumentMetadataSchema** - Rich metadata for document objects with type, size, version info\n5. **AgentMetadataSchema** - Rich metadata for agent objects with model, capabilities, performance metrics\n6. **SidebarSectionConfigSchema** - Individual section configuration with virtualization and search settings\n7. **SearchConfigSchema & FilterStateSchema** - Advanced search and filtering functionality\n8. **DragDropConfigSchema & DragDataSchema** - Complete drag-and-drop system with visual feedback\n9. **VirtualListConfigSchema** - Performance optimization for large datasets\n10. **SidebarStateSchema** - Complete state management for the entire sidebar system\n\n**Key Features Implemented:**\n- Integration with existing Canvas/node architecture through PositionSchema and NodeTypeSchema reuse\n- Event sourcing compatibility for undo/redo functionality\n- Comprehensive TypeScript type exports and factory functions\n- Advanced virtualization support for performance with large lists\n- Sophisticated drag-and-drop system with HTML5 API integration\n- Rich metadata display with thumbnails, badges, and status indicators\n- Search and filtering with debounced input and multi-field support\n\n**Documentation:**\n- Schemas properly documented in CHANGELOG.md as Version 1.5.0\n- All schemas exported through index.ts barrel exports\n- Factory functions and validation utilities included\n\nThe schemas follow all project patterns and are ready for implementation in the sidebar UI components.\n</info added on 2025-08-08T08:23:47.478Z>",
+            "status": "pending",
+            "testStrategy": "Test search performance and accuracy, verify filter combinations, test metadata display rendering, validate recent items and favorites persistence"
+          }
+        ]
       },
       {
         "id": 9,
@@ -657,7 +711,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-08T07:36:51.611Z",
+      "updated": "2025-08-08T08:16:25.609Z",
       "description": "Tasks for master context"
     }
   }
