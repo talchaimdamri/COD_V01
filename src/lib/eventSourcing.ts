@@ -5,6 +5,9 @@ import {
   AddNodeEvent,
   MoveNodeEvent,
   DeleteNodeEvent,
+  CreateEdgeEvent,
+  DeleteEdgeEvent,
+  UpdateEdgePathEvent,
   SelectElementEvent,
   PanCanvasEvent,
   ZoomCanvasEvent,
@@ -15,13 +18,17 @@ import {
   ZoomLevel,
   CanvasEventUtils,
   CANVAS_LIMITS,
+  ConnectionPoint,
+  EdgeType,
+  EdgePath,
+  EdgeStyle,
 } from '../../schemas/events/canvas'
 import {
   DocumentEvent,
   DocumentEventFactory,
   DocumentEventUtils,
 } from '../../schemas/events/document'
-import { CanvasState, CanvasNode, DEFAULT_VIEW_BOX } from '../components/canvas/types'
+import { CanvasState, CanvasNode, CanvasEdge, DEFAULT_VIEW_BOX } from '../components/canvas/types'
 import { Version } from '../../schemas/api/versions'
 
 /**
@@ -51,7 +58,14 @@ export interface EventSourcingActions {
   addNode: (nodeType: NodeType, position: Position, title?: string) => Promise<void>
   moveNode: (nodeId: string, fromPosition: Position, toPosition: Position) => Promise<void>
   deleteNode: (nodeId: string) => Promise<void>
-  selectElement: (elementId: string | null) => Promise<void>
+  
+  // Edge operations
+  createEdge: (sourceConnection: ConnectionPoint, targetConnection: ConnectionPoint, edgeType?: EdgeType, style?: EdgeStyle) => Promise<void>
+  deleteEdge: (edgeId: string) => Promise<void>
+  updateEdgePath: (edgeId: string, fromPath: EdgePath, toPath: EdgePath, reason: 'node_moved' | 'manual_edit' | 'routing_update') => Promise<void>
+  
+  // Selection operations
+  selectElement: (elementId: string | null, elementType?: 'node' | 'edge') => Promise<void>
   
   // Canvas operations
   panCanvas: (fromViewBox: ViewBox, toViewBox: ViewBox, deltaX: number, deltaY: number) => Promise<void>
@@ -148,11 +162,31 @@ function reduceCanvasEvents(events: CanvasEvent[]): CanvasState {
 
       case 'MOVE_NODE': {
         const { nodeId, toPosition } = (event as MoveNodeEvent).payload
+        
+        // Update node position and recalculate connected edge paths
+        const updatedNodes = state.nodes.map(node =>
+          node.id === nodeId ? { ...node, position: toPosition } : node
+        )
+        
+        const updatedEdges = state.edges.map(edge => {
+          if (edge.source.nodeId === nodeId || edge.target.nodeId === nodeId) {
+            // Recalculate edge positions when nodes move
+            const updatedEdge = { ...edge }
+            if (edge.source.nodeId === nodeId) {
+              updatedEdge.source = { ...edge.source, position: toPosition }
+            }
+            if (edge.target.nodeId === nodeId) {
+              updatedEdge.target = { ...edge.target, position: toPosition }
+            }
+            return updatedEdge
+          }
+          return edge
+        })
+        
         return {
           ...state,
-          nodes: state.nodes.map(node =>
-            node.id === nodeId ? { ...node, position: toPosition } : node
-          ),
+          nodes: updatedNodes,
+          edges: updatedEdges,
         }
       }
 
@@ -161,14 +195,61 @@ function reduceCanvasEvents(events: CanvasEvent[]): CanvasState {
         return {
           ...state,
           nodes: state.nodes.filter(node => node.id !== nodeId),
+          // Remove edges connected to the deleted node
+          edges: state.edges.filter(edge => 
+            edge.source.nodeId !== nodeId && edge.target.nodeId !== nodeId
+          ),
+          // Clear selection if deleted node was selected
+          selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
         }
       }
 
-      case 'SELECT_ELEMENT': {
-        const { elementId } = (event as SelectElementEvent).payload
+      case 'CREATE_EDGE': {
+        const { edgeId, sourceConnection, targetConnection, edgeType, style } = (event as CreateEdgeEvent).payload
+        const newEdge: CanvasEdge = {
+          id: edgeId,
+          type: edgeType || 'bezier',
+          source: sourceConnection,
+          target: targetConnection,
+          style,
+        }
         return {
           ...state,
-          selectedNodeId: elementId,
+          edges: [...state.edges, newEdge],
+        }
+      }
+
+      case 'DELETE_EDGE': {
+        const { edgeId } = (event as DeleteEdgeEvent).payload
+        return {
+          ...state,
+          edges: state.edges.filter(edge => edge.id !== edgeId),
+          // Clear selection if deleted edge was selected
+          selectedEdgeId: state.selectedEdgeId === edgeId ? null : state.selectedEdgeId,
+        }
+      }
+
+      case 'UPDATE_EDGE_PATH': {
+        const { edgeId } = (event as UpdateEdgePathEvent).payload
+        // For now, we're not updating the edge path in the reducer
+        // as path calculation is done by the rendering components
+        return state
+      }
+
+      case 'SELECT_ELEMENT': {
+        const { elementId, elementType } = (event as SelectElementEvent).payload
+        if (elementType === 'edge' || (!elementType && state.edges.some(e => e.id === elementId))) {
+          return {
+            ...state,
+            selectedNodeId: null,
+            selectedEdgeId: elementId,
+          }
+        } else {
+          return {
+            ...state,
+            selectedNodeId: elementId,
+            selectedEdgeId: null,
+          }
         }
       }
 
@@ -203,11 +284,19 @@ function reduceCanvasEvents(events: CanvasEvent[]): CanvasState {
     }
   }, {
     nodes: [],
+    edges: [],
     viewBox: DEFAULT_VIEW_BOX,
     scale: 1,
     isPanning: false,
     selectedNodeId: null,
+    selectedEdgeId: null,
     showGrid: true,
+    edgeCreationState: {
+      isCreating: false,
+      sourceConnection: null,
+      currentPosition: null,
+      validTarget: null,
+    },
     dragState: {
       isDragging: false,
       nodeId: null,
@@ -220,6 +309,11 @@ function reduceCanvasEvents(events: CanvasEvent[]): CanvasState {
 // Generate unique node ID
 function generateNodeId(): string {
   return `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+// Generate unique edge ID
+function generateEdgeId(): string {
+  return `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
 /**
@@ -247,7 +341,7 @@ export function useCanvasEventSourcing(): EventSourcingState & EventSourcingActi
       setIsLoading(true)
       try {
         const events = await eventService.current.getEvents({
-          typePrefix: 'ADD_NODE,MOVE_NODE,DELETE_NODE,SELECT_ELEMENT,PAN_CANVAS,ZOOM_CANVAS,RESET_VIEW',
+          typePrefix: 'ADD_NODE,MOVE_NODE,DELETE_NODE,CREATE_EDGE,DELETE_EDGE,UPDATE_EDGE_PATH,SELECT_ELEMENT,PAN_CANVAS,ZOOM_CANVAS,RESET_VIEW',
           limit: 100,
         })
         
@@ -339,20 +433,74 @@ export function useCanvasEventSourcing(): EventSourcingState & EventSourcingActi
     await dispatchEvent(event)
   }, [dispatchEvent, canvasState.nodes])
 
-  const selectElement = useCallback(async (elementId: string | null) => {
+  // Edge operations
+  const createEdge = useCallback(async (
+    sourceConnection: ConnectionPoint,
+    targetConnection: ConnectionPoint,
+    edgeType: EdgeType = 'bezier',
+    style?: EdgeStyle
+  ) => {
+    const edgeId = generateEdgeId()
+    const event = CanvasEventFactory.createCreateEdgeEvent(edgeId, sourceConnection, targetConnection, {
+      edgeType,
+      style,
+    })
+    await dispatchEvent(event)
+  }, [dispatchEvent])
+
+  const deleteEdge = useCallback(async (edgeId: string) => {
+    // Find the edge to get its data for undo purposes
+    const edge = canvasState.edges.find(e => e.id === edgeId)
+    if (!edge) return
+    
+    const event = CanvasEventFactory.createDeleteEdgeEvent(edgeId, {
+      sourceConnection: edge.source,
+      targetConnection: edge.target,
+      edgeType: edge.type,
+      style: edge.style,
+    })
+    
+    await dispatchEvent(event)
+  }, [dispatchEvent, canvasState.edges])
+
+  const updateEdgePath = useCallback(async (
+    edgeId: string,
+    fromPath: EdgePath,
+    toPath: EdgePath,
+    reason: 'node_moved' | 'manual_edit' | 'routing_update'
+  ) => {
+    const event = CanvasEventFactory.createUpdateEdgePathEvent(edgeId, fromPath, toPath, reason)
+    await dispatchEvent(event)
+  }, [dispatchEvent])
+
+  const selectElement = useCallback(async (elementId: string | null, elementType?: 'node' | 'edge') => {
+    // Determine element type if not provided
+    let detectedElementType = elementType
+    if (!detectedElementType && elementId) {
+      if (canvasState.nodes.some(n => n.id === elementId)) {
+        detectedElementType = 'node'
+      } else if (canvasState.edges.some(e => e.id === elementId)) {
+        detectedElementType = 'edge'
+      }
+    }
+
+    const previousSelection = detectedElementType === 'edge' 
+      ? canvasState.selectedEdgeId 
+      : canvasState.selectedNodeId
+
     const event: SelectElementEvent = {
       type: 'SELECT_ELEMENT',
       payload: {
         elementId,
         multiSelect: false,
-        elementType: elementId ? 'node' : undefined,
-        previousSelection: canvasState.selectedNodeId,
+        elementType: detectedElementType,
+        previousSelection,
       },
       timestamp: new Date(),
     }
     
     await dispatchEvent(event)
-  }, [dispatchEvent, canvasState.selectedNodeId])
+  }, [dispatchEvent, canvasState.selectedNodeId, canvasState.selectedEdgeId, canvasState.nodes, canvasState.edges])
 
   // Canvas operations
   const panCanvas = useCallback(async (fromViewBox: ViewBox, toViewBox: ViewBox, deltaX: number, deltaY: number) => {
@@ -453,6 +601,9 @@ export function useCanvasEventSourcing(): EventSourcingState & EventSourcingActi
     addNode,
     moveNode,
     deleteNode,
+    createEdge,
+    deleteEdge,
+    updateEdgePath,
     selectElement,
     panCanvas,
     zoomCanvas,

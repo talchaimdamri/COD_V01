@@ -5,8 +5,9 @@
  * to ensure it properly uses the event-driven state management.
  */
 
+import React from 'react'
 import { render, screen } from '@testing-library/react'
-import { describe, test, expect, vi } from 'vitest'
+import { describe, test, expect, vi, beforeEach } from 'vitest'
 import Canvas from '../../../src/components/canvas/Canvas'
 import * as eventSourcing from '../../../src/lib/eventSourcing'
 
@@ -15,11 +16,19 @@ vi.mock('../../../src/lib/eventSourcing', () => ({
   useCanvasEventSourcing: vi.fn(() => ({
     canvasState: {
       nodes: [],
+      edges: [],
       viewBox: { x: 0, y: 0, width: 1200, height: 800 },
       scale: 1,
       isPanning: false,
       selectedNodeId: null,
+      selectedEdgeId: null,
       showGrid: true,
+      edgeCreationState: {
+        isCreating: false,
+        sourceConnection: null,
+        currentPosition: null,
+        validTarget: null,
+      },
       dragState: {
         isDragging: false,
         nodeId: null,
@@ -36,6 +45,9 @@ vi.mock('../../../src/lib/eventSourcing', () => ({
     addNode: vi.fn(),
     moveNode: vi.fn(),
     deleteNode: vi.fn(),
+    createEdge: vi.fn(),
+    deleteEdge: vi.fn(),
+    updateEdgePath: vi.fn(),
     selectElement: vi.fn(),
     panCanvas: vi.fn(),
     zoomCanvas: vi.fn(),
@@ -50,6 +62,10 @@ vi.mock('../../../src/lib/eventSourcing', () => ({
 const mockedEventSourcing = vi.mocked(eventSourcing)
 
 describe('Canvas Event Sourcing Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   test('should render canvas with event sourcing without crashing', () => {
     render(<Canvas />)
     
@@ -258,5 +274,170 @@ describe('Canvas Event Sourcing Integration', () => {
     // Verify selected node styling
     expect(nodes[0]).toHaveClass('selected')
     expect(nodes[1]).not.toHaveClass('selected')
+  })
+
+  test('should render edges from event sourcing state', () => {
+    // Mock state with nodes and edges
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
+      canvasState: {
+        nodes: [
+          {
+            id: 'node-1',
+            type: 'document',
+            position: { x: 100, y: 200 },
+            title: 'Document 1',
+          },
+          {
+            id: 'node-2',
+            type: 'agent',
+            position: { x: 300, y: 400 },
+            title: 'Agent 1',
+          },
+        ],
+        edges: [
+          {
+            id: 'edge-1',
+            type: 'bezier',
+            source: {
+              nodeId: 'node-1',
+              anchorId: 'right',
+              position: { x: 160, y: 200 },
+            },
+            target: {
+              nodeId: 'node-2',
+              anchorId: 'left',
+              position: { x: 240, y: 400 },
+            },
+            style: {
+              stroke: '#666666',
+              strokeWidth: 2,
+            },
+          },
+        ],
+        viewBox: { x: 0, y: 0, width: 1200, height: 800 },
+        scale: 1,
+        isPanning: false,
+        selectedNodeId: null,
+        selectedEdgeId: 'edge-1',
+        showGrid: true,
+        edgeCreationState: {
+          isCreating: false,
+          sourceConnection: null,
+          currentPosition: null,
+          validTarget: null,
+        },
+        dragState: {
+          isDragging: false,
+          nodeId: null,
+          startPosition: null,
+          currentPosition: null,
+        },
+      },
+      eventHistory: [],
+      currentEventIndex: -1,
+      isLoading: false,
+      error: null,
+      canUndo: false,
+      canRedo: false,
+      addNode: vi.fn(),
+      moveNode: vi.fn(),
+      deleteNode: vi.fn(),
+      createEdge: vi.fn(),
+      deleteEdge: vi.fn(),
+      updateEdgePath: vi.fn(),
+      selectElement: vi.fn(),
+      panCanvas: vi.fn(),
+      zoomCanvas: vi.fn(),
+      resetView: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      replayEvents: vi.fn(),
+      clearHistory: vi.fn(),
+    })
+
+    render(<Canvas />)
+    
+    // Should render both nodes and edge
+    const nodes = screen.getAllByTestId('canvas-node')
+    expect(nodes).toHaveLength(2)
+    
+    // Should render EdgeManager
+    const edgeManager = screen.getByTestId('edge-manager')
+    expect(edgeManager).toBeInTheDocument()
+    
+    // Should render SVG arrow markers
+    const svg = screen.getByTestId('canvas-svg')
+    const arrowEnd = svg.querySelector('#arrowEnd')
+    expect(arrowEnd).toBeInTheDocument()
+  })
+
+  test('should render EdgeManager with edge creation state', () => {
+    // Mock state with edge creation in progress
+    mockedEventSourcing.useCanvasEventSourcing.mockReturnValueOnce({
+      canvasState: {
+        nodes: [
+          {
+            id: 'node-1',
+            type: 'document',
+            position: { x: 100, y: 200 },
+            title: 'Document 1',
+          },
+        ],
+        edges: [],
+        viewBox: { x: 0, y: 0, width: 1200, height: 800 },
+        scale: 1,
+        isPanning: false,
+        selectedNodeId: 'node-1',
+        selectedEdgeId: null,
+        showGrid: true,
+        edgeCreationState: {
+          isCreating: true,
+          sourceConnection: {
+            nodeId: 'node-1',
+            anchorId: 'right',
+            position: { x: 160, y: 200 },
+          },
+          currentPosition: { x: 250, y: 300 },
+          validTarget: null,
+        },
+        dragState: {
+          isDragging: false,
+          nodeId: null,
+          startPosition: null,
+          currentPosition: null,
+        },
+      },
+      eventHistory: [],
+      currentEventIndex: -1,
+      isLoading: false,
+      error: null,
+      canUndo: false,
+      canRedo: false,
+      addNode: vi.fn(),
+      moveNode: vi.fn(),
+      deleteNode: vi.fn(),
+      createEdge: vi.fn(),
+      deleteEdge: vi.fn(),
+      updateEdgePath: vi.fn(),
+      selectElement: vi.fn(),
+      panCanvas: vi.fn(),
+      zoomCanvas: vi.fn(),
+      resetView: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      replayEvents: vi.fn(),
+      clearHistory: vi.fn(),
+    })
+
+    render(<Canvas />)
+    
+    // Should render EdgeManager for edge creation
+    const edgeManager = screen.getByTestId('edge-manager')
+    expect(edgeManager).toBeInTheDocument()
+    
+    // Should show connection anchors when selected
+    const nodes = screen.getAllByTestId('canvas-node')
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]).toHaveClass('selected')
   })
 })

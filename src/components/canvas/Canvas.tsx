@@ -1,20 +1,27 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react'
 import CanvasGrid from './CanvasGrid'
 import { DocumentNode, AgentNode } from './nodes'
+import { EdgeManager } from './edges/EdgeManager'
+import { BezierEdge, StraightEdge, OrthogonalEdge } from './edges'
 import { 
   CanvasProps, 
   Position, 
   CanvasNode,
+  CanvasEdge,
   CANVAS_CONFIG 
 } from './types'
 import { useCanvasEventSourcing } from '../../lib/eventSourcing'
-import { CanvasEventUtils, CANVAS_LIMITS, ViewBox } from '../../../schemas/events/canvas'
+import { CanvasEventUtils, CANVAS_LIMITS, ViewBox, ConnectionPoint, EdgeType } from '../../../schemas/events/canvas'
+import { EdgeCreationState, NodeAnchor, EdgeProps } from '../../../schemas/api/edges'
 
 const Canvas: React.FC<CanvasProps> = ({
   className = '',
   onNodeCreate,
   onNodeMove,
   onNodeSelect,
+  onEdgeCreate,
+  onEdgeSelect,
+  onEdgeDelete,
   onViewChange,
   onGridToggle,
 }) => {
@@ -29,6 +36,8 @@ const Canvas: React.FC<CanvasProps> = ({
     canRedo,
     addNode,
     moveNode,
+    createEdge,
+    deleteEdge,
     selectElement,
     panCanvas,
     zoomCanvas,
@@ -56,11 +65,30 @@ const Canvas: React.FC<CanvasProps> = ({
   const [isSpacePanning, setIsSpacePanning] = useState(false)
   const [spaceKeyDown, setSpaceKeyDown] = useState(false)
   
+  // Local edge creation state for smooth interactions
+  const [localEdgeCreationState, setLocalEdgeCreationState] = useState<EdgeCreationState>({
+    isCreating: false,
+    sourceConnection: null,
+    currentPosition: null,
+    validTarget: null,
+  })
+  
+  // Edge context menu state
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{
+    visible: boolean
+    edgeId: string | null
+    position: Position | null
+  }>({
+    visible: false,
+    edgeId: null,
+    position: null,
+  })
+  
   // Local optimistic state for keyboard interactions
   const [optimisticViewBox, setOptimisticViewBox] = useState<ViewBox | null>(null)
   const [optimisticScale, setOptimisticScale] = useState<number | null>(null)
 
-  // Handle global keyboard shortcuts for undo/redo
+  // Handle global keyboard shortcuts for undo/redo and edge deletion
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
@@ -69,12 +97,170 @@ const Canvas: React.FC<CanvasProps> = ({
       } else if ((event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.key === 'z' && event.shiftKey))) {
         event.preventDefault()
         redo()
+      } else if (event.key === 'Delete' && canvasState.selectedEdgeId) {
+        event.preventDefault()
+        handleDeleteSelectedEdge()
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo])
+  }, [undo, redo, canvasState.selectedEdgeId])
+
+  // Handle edge deletion
+  const handleDeleteSelectedEdge = useCallback(async () => {
+    if (canvasState.selectedEdgeId) {
+      try {
+        await deleteEdge(canvasState.selectedEdgeId)
+        onEdgeDelete?.(canvasState.selectedEdgeId)
+      } catch (error) {
+        console.error('Failed to delete edge:', error)
+      }
+    }
+  }, [canvasState.selectedEdgeId, deleteEdge, onEdgeDelete])
+
+  // Edge creation handlers for EdgeManager
+  const handleEdgeCreationStart = useCallback((sourceConnection: ConnectionPoint) => {
+    setLocalEdgeCreationState({
+      isCreating: true,
+      sourceConnection,
+      currentPosition: null,
+      validTarget: null,
+    })
+  }, [])
+
+  const handleEdgeCreationMove = useCallback((currentPosition: Position, validTarget?: ConnectionPoint) => {
+    setLocalEdgeCreationState(prev => ({
+      ...prev,
+      currentPosition,
+      validTarget: validTarget || null,
+    }))
+  }, [])
+
+  const handleEdgeCreationComplete = useCallback(async (
+    sourceConnection: ConnectionPoint,
+    targetConnection: ConnectionPoint,
+    edgeType: EdgeType
+  ) => {
+    setLocalEdgeCreationState({
+      isCreating: false,
+      sourceConnection: null,
+      currentPosition: null,
+      validTarget: null,
+    })
+    
+    try {
+      await createEdge(sourceConnection, targetConnection, edgeType)
+      onEdgeCreate?.(sourceConnection.nodeId, targetConnection.nodeId, edgeType)
+    } catch (error) {
+      console.error('Failed to create edge:', error)
+    }
+  }, [createEdge, onEdgeCreate])
+
+  const handleEdgeCreationCancel = useCallback(() => {
+    setLocalEdgeCreationState({
+      isCreating: false,
+      sourceConnection: null,
+      currentPosition: null,
+      validTarget: null,
+    })
+  }, [])
+
+  // Handle edge selection
+  const handleEdgeSelect = useCallback(async (edgeId: string | null) => {
+    try {
+      await selectElement(edgeId, 'edge')
+      onEdgeSelect?.(edgeId)
+    } catch (error) {
+      console.error('Failed to select edge:', error)
+    }
+  }, [selectElement, onEdgeSelect])
+
+  // Handle edge context menu actions
+  const handleEdgeContextMenuAction = useCallback(async (action: string, edgeId: string) => {
+    setEdgeContextMenu({ visible: false, edgeId: null, position: null })
+    
+    switch (action) {
+      case 'delete':
+        try {
+          await deleteEdge(edgeId)
+          onEdgeDelete?.(edgeId)
+        } catch (error) {
+          console.error('Failed to delete edge:', error)
+        }
+        break
+      case 'select':
+        handleEdgeSelect(edgeId)
+        break
+      case 'change-type':
+        // TODO: Implement edge type change
+        console.log('Change edge type for:', edgeId)
+        break
+      default:
+        break
+    }
+  }, [deleteEdge, onEdgeDelete, handleEdgeSelect])
+
+  // Close context menu when clicking elsewhere
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (edgeContextMenu.visible) {
+        setEdgeContextMenu({ visible: false, edgeId: null, position: null })
+      }
+    }
+
+    if (edgeContextMenu.visible) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [edgeContextMenu.visible])
+
+  // Generate anchors for nodes to use with EdgeManager
+  const generateNodeAnchors = useCallback((node: CanvasNode): NodeAnchor[] => {
+    const radius = CANVAS_CONFIG.NODE_RADIUS
+    return [
+      {
+        id: 'top',
+        position: 'top' as const,
+        offset: { x: 0, y: -radius },
+        visible: localEdgeCreationState.isCreating || canvasState.selectedNodeId === node.id,
+        connectable: true,
+        connectionType: 'bidirectional' as const,
+      },
+      {
+        id: 'right', 
+        position: 'right' as const,
+        offset: { x: radius, y: 0 },
+        visible: localEdgeCreationState.isCreating || canvasState.selectedNodeId === node.id,
+        connectable: true,
+        connectionType: 'bidirectional' as const,
+      },
+      {
+        id: 'bottom',
+        position: 'bottom' as const,
+        offset: { x: 0, y: radius },
+        visible: localEdgeCreationState.isCreating || canvasState.selectedNodeId === node.id,
+        connectable: true,
+        connectionType: 'bidirectional' as const,
+      },
+      {
+        id: 'left',
+        position: 'left' as const,
+        offset: { x: -radius, y: 0 },
+        visible: localEdgeCreationState.isCreating || canvasState.selectedNodeId === node.id,
+        connectable: true,
+        connectionType: 'bidirectional' as const,
+      },
+    ]
+  }, [localEdgeCreationState.isCreating, canvasState.selectedNodeId])
+
+  // Generate nodes with anchors for EdgeManager
+  const nodesWithAnchors = useMemo(() => {
+    return canvasState.nodes.map(node => ({
+      ...node,
+      anchors: generateNodeAnchors(node),
+    }))
+  }, [canvasState.nodes, generateNodeAnchors])
 
   // Convert screen coordinates to SVG coordinates
   const screenToSVG = useCallback((screenX: number, screenY: number): Position => {
@@ -611,12 +797,27 @@ const Canvas: React.FC<CanvasProps> = ({
           }
           break
 
+        // Delete key for deleting selected elements
+        case 'Delete':
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
+            event.preventDefault()
+            if (canvasState.selectedEdgeId) {
+              handleDeleteSelectedEdge()
+            }
+          }
+          break
+
         // Escape key for clearing selections
         case 'Escape':
           if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.repeat) {
             event.preventDefault()
-            selectElement(null)
-            onNodeSelect?.(null)
+            if (localEdgeCreationState.isCreating) {
+              handleEdgeCreationCancel()
+            } else {
+              selectElement(null)
+              onNodeSelect?.(null)
+              onEdgeSelect?.(null)
+            }
           }
           break
 
@@ -631,7 +832,12 @@ const Canvas: React.FC<CanvasProps> = ({
     } catch (error) {
       console.error('Failed to handle keyboard shortcut:', error)
     }
-  }, [canvasState.viewBox, canvasState.scale, canvasState.nodes, canvasState.selectedNodeId, spaceKeyDown, panCanvas, resetView, zoomCanvas, toggleGrid, selectElement, onNodeSelect, onViewChange, constrainViewBox, performZoom, performZoomToLevel, fitToContent, navigateNodes])
+  }, [
+    canvasState.viewBox, canvasState.scale, canvasState.nodes, canvasState.selectedNodeId, canvasState.selectedEdgeId,
+    spaceKeyDown, localEdgeCreationState.isCreating, panCanvas, resetView, zoomCanvas, toggleGrid, selectElement, 
+    onNodeSelect, onEdgeSelect, onViewChange, constrainViewBox, performZoom, performZoomToLevel, fitToContent, 
+    navigateNodes, handleDeleteSelectedEdge, handleEdgeCreationCancel
+  ])
 
   // Handle key up events
   const handleKeyUp = useCallback((event: React.KeyboardEvent) => {
@@ -924,6 +1130,34 @@ const Canvas: React.FC<CanvasProps> = ({
           cursor: isPanning || isSpacePanning || localDragState.isDragging ? 'grabbing' : 'grab'
         }}
       >
+        {/* SVG Definitions for arrows and markers */}
+        <defs>
+          <marker
+            id="arrowEnd"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L0,6 L9,3 z" fill="#666666" />
+          </marker>
+          <marker
+            id="arrowStart"
+            viewBox="0 0 10 10"
+            refX="1"
+            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M9,0 L9,6 L0,3 z" fill="#666666" />
+          </marker>
+        </defs>
+
         {/* Grid - using showGrid from canvas state */}
         <CanvasGrid 
           viewBox={displayViewBox} 
@@ -931,7 +1165,107 @@ const Canvas: React.FC<CanvasProps> = ({
           visible={canvasState.showGrid} 
         />
         
-        {/* Nodes */}
+        {/* Edges Layer - render beneath nodes */}
+        {canvasState.edges.map((edge) => {
+          const edgeProps: EdgeProps = {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            type: edge.type,
+            path: {
+              type: edge.type,
+              start: edge.source.position,
+              end: edge.target.position,
+            },
+            style: {
+              stroke: edge.style?.stroke || '#666666',
+              strokeWidth: edge.style?.strokeWidth || 2,
+              opacity: edge.style?.opacity || 0.8,
+              markerEnd: edge.style?.markerEnd || 'url(#arrowEnd)',
+              ...edge.style,
+            },
+            visualState: {
+              selected: edge.id === canvasState.selectedEdgeId,
+              hovered: false,
+              dragging: false,
+              connecting: false,
+              animated: false,
+            },
+            data: edge.data,
+          }
+
+          const handleEdgeClick = () => {
+            handleEdgeSelect(edge.id)
+          }
+
+          const handleEdgeContextMenu = (event: React.MouseEvent) => {
+            event.preventDefault()
+            const rect = svgRef.current?.getBoundingClientRect()
+            if (!rect) return
+            
+            setEdgeContextMenu({
+              visible: true,
+              edgeId: edge.id,
+              position: {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
+              },
+            })
+          }
+
+          switch (edge.type) {
+            case 'bezier':
+              return (
+                <BezierEdge
+                  key={edge.id}
+                  {...edgeProps}
+                  type="bezier"
+                  curvature={0.5}
+                  showControlPoints={edge.id === canvasState.selectedEdgeId}
+                  onEdgeClick={handleEdgeClick}
+                  onEdgeContextMenu={handleEdgeContextMenu}
+                />
+              )
+            case 'straight':
+              return (
+                <StraightEdge
+                  key={edge.id}
+                  {...edgeProps}
+                  type="straight"
+                  showMidpointHandle={edge.id === canvasState.selectedEdgeId}
+                  onEdgeClick={handleEdgeClick}
+                  onEdgeContextMenu={handleEdgeContextMenu}
+                />
+              )
+            case 'orthogonal':
+              return (
+                <OrthogonalEdge
+                  key={edge.id}
+                  {...edgeProps}
+                  type="orthogonal"
+                  cornerRadius={5}
+                  showWaypoints={edge.id === canvasState.selectedEdgeId}
+                  onEdgeClick={handleEdgeClick}
+                  onEdgeContextMenu={handleEdgeContextMenu}
+                />
+              )
+            default:
+              return null
+          }
+        })}
+
+        {/* EdgeManager for edge creation */}
+        <EdgeManager
+          creationState={localEdgeCreationState}
+          nodes={nodesWithAnchors}
+          onCreationStart={handleEdgeCreationStart}
+          onCreationMove={handleEdgeCreationMove}
+          onCreationComplete={handleEdgeCreationComplete}
+          onCreationCancel={handleEdgeCreationCancel}
+          defaultEdgeType="bezier"
+        />
+        
+        {/* Nodes Layer - render above edges */}
         {canvasState.nodes.map((node) => {
           // Handle local drag preview
           const isDraggedNode = localDragState.isDragging && localDragState.nodeId === node.id
@@ -965,7 +1299,75 @@ const Canvas: React.FC<CanvasProps> = ({
             },
             onDragEnd: (nodeId: string, pos: Position, startPos: Position) => {
               // Already handled by Canvas drag logic
-            }
+            },
+            // Connection anchor props
+            showConnectionAnchors: localEdgeCreationState.isCreating || node.id === canvasState.selectedNodeId,
+            onAnchorClick: (anchorId: string, anchorPosition: Position) => {
+              // Handle anchor click for edge creation
+              const connectionPoint: ConnectionPoint = {
+                nodeId: node.id,
+                anchorId,
+                position: anchorPosition,
+              }
+              
+              if (localEdgeCreationState.isCreating) {
+                // Complete edge creation if already creating
+                if (localEdgeCreationState.sourceConnection) {
+                  handleEdgeCreationComplete(
+                    localEdgeCreationState.sourceConnection,
+                    connectionPoint,
+                    'bezier' // Default edge type
+                  )
+                }
+              } else {
+                // Start edge creation
+                handleEdgeCreationStart(connectionPoint)
+              }
+            },
+            onAnchorHover: (anchorId: string, hovered: boolean) => {
+              // Visual feedback for anchor hover during edge creation
+              if (localEdgeCreationState.isCreating) {
+                const anchorPosition = {
+                  x: displayPosition.x,
+                  y: displayPosition.y,
+                }
+                
+                // Calculate actual anchor position based on anchor ID
+                const nodeWidth = 120 // Default node width
+                const nodeHeight = 80 // Default node height
+                
+                switch (anchorId) {
+                  case 'top':
+                    anchorPosition.y -= nodeHeight / 2
+                    break
+                  case 'right':
+                    anchorPosition.x += nodeWidth / 2
+                    break
+                  case 'bottom':
+                    anchorPosition.y += nodeHeight / 2
+                    break
+                  case 'left':
+                    anchorPosition.x -= nodeWidth / 2
+                    break
+                }
+                
+                if (hovered) {
+                  setLocalEdgeCreationState(prev => ({
+                    ...prev,
+                    validTarget: {
+                      nodeId: node.id,
+                      anchorId,
+                      position: anchorPosition,
+                    },
+                  }))
+                } else {
+                  setLocalEdgeCreationState(prev => ({
+                    ...prev,
+                    validTarget: null,
+                  }))
+                }
+              }
+            },
           }
           
           if (node.type === 'document') {
@@ -1038,10 +1440,43 @@ const Canvas: React.FC<CanvasProps> = ({
       
       {/* Hidden accessibility information for keyboard shortcuts */}
       <div id="canvas-keyboard-shortcuts" className="sr-only">
-        Keyboard shortcuts: Arrow keys to pan, +/- to zoom, R to reset view, Escape to clear selection, 
-        Tab/Shift+Tab to navigate nodes, Space bar for temporary pan mode, Home key to fit content, 
+        Keyboard shortcuts: Arrow keys to pan, +/- to zoom, R to reset view, Escape to clear selection or cancel edge creation, 
+        Delete to remove selected edge, Tab/Shift+Tab to navigate nodes, Space bar for temporary pan mode, Home key to fit content, 
         Number keys 1-9 for preset zoom levels, G to toggle grid, Ctrl+Z/Y for undo/redo.
       </div>
+
+      {/* Edge Context Menu */}
+      {edgeContextMenu.visible && edgeContextMenu.position && edgeContextMenu.edgeId && (
+        <div
+          data-testid="edge-context-menu"
+          className="absolute bg-white border border-gray-300 rounded-md shadow-lg py-1 z-50"
+          style={{
+            left: edgeContextMenu.position.x,
+            top: edgeContextMenu.position.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => handleEdgeContextMenuAction('select', edgeContextMenu.edgeId!)}
+          >
+            Select Edge
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => handleEdgeContextMenuAction('change-type', edgeContextMenu.edgeId!)}
+          >
+            Change Edge Type
+          </button>
+          <hr className="my-1" />
+          <button
+            className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+            onClick={() => handleEdgeContextMenuAction('delete', edgeContextMenu.edgeId!)}
+          >
+            Delete Edge
+          </button>
+        </div>
+      )}
     </div>
   )
 }
