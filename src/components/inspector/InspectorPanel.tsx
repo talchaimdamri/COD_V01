@@ -7,6 +7,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Agent } from '../../schemas/database/agent'
+import { AgentConfigForm, type AgentFormData } from './AgentConfigForm'
 
 export interface InspectorPanelLayout {
   isOpen: boolean
@@ -20,16 +21,54 @@ export interface InspectorPanelLayout {
   zIndex: number
 }
 
+// Types for models and tools (should match test fixtures)
+interface ModelOption {
+  id: string
+  name: string
+  provider: string
+  description: string
+  capabilities: string[]
+  maxTokens: number
+  costPer1k: number
+  isAvailable: boolean
+  recommendedFor: string[]
+  performance: {
+    speed: number
+    quality: number
+    reasoning: number
+  }
+}
+
+interface ToolOption {
+  id: string
+  name: string
+  description: string
+  category: string
+  icon: string
+  isEnabled: boolean
+  isRequired: boolean
+  permissions: string[]
+  config?: Record<string, any>
+  compatibleModels: string[]
+  performanceImpact: number
+}
+
 export interface InspectorPanelProps {
   layout: InspectorPanelLayout
   selectedAgent: Agent | null | undefined
+  availableModels?: ModelOption[]
+  availableTools?: ToolOption[]
   onLayoutChange?: (layout: InspectorPanelLayout) => void
+  onAgentUpdate?: (agent: Agent, formData: AgentFormData) => void | Promise<void>
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   layout,
   selectedAgent,
+  availableModels = [],
+  availableTools = [],
   onLayoutChange,
+  onAgentUpdate,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -93,6 +132,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       })
     }
   }, [layout, onLayoutChange])
+
+  // Handle form submission
+  const handleAgentFormSubmit = useCallback(async (formData: AgentFormData) => {
+    if (selectedAgent && onAgentUpdate) {
+      try {
+        await onAgentUpdate(selectedAgent, formData)
+      } catch (error) {
+        console.error('Agent update failed:', error)
+      }
+    }
+  }, [selectedAgent, onAgentUpdate])
+
+  // Handle form changes (real-time updates)
+  const handleAgentFormChange = useCallback((partialData: Partial<AgentFormData>) => {
+    // For now, just log the changes - could be used for live preview
+    console.log('Form data changed:', partialData)
+  }, [])
 
   // Handle backdrop click
   const handleBackdropClick = useCallback(() => {
@@ -256,13 +312,16 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             style={{
               flex: '1 1 auto',
               overflow: 'auto',
-              padding: '16px',
+              padding: '0', // Remove padding since form has its own
             }}
           >
-            {/* Content will be populated by other subtasks */}
-            <div style={{ color: '#6b7280', fontStyle: 'italic' }}>
-              Inspector content for {selectedAgent.name} will be implemented in subsequent subtasks.
-            </div>
+            <AgentConfigForm
+              agent={selectedAgent}
+              availableModels={availableModels}
+              availableTools={availableTools}
+              onSubmit={handleAgentFormSubmit}
+              onChange={handleAgentFormChange}
+            />
           </div>
         )}
       </div>
