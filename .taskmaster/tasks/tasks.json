@@ -404,7 +404,7 @@
         "dependencies": [
           4
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -412,7 +412,7 @@
             "description": "Build the main sidebar container component with collapse/expand toggle, fixed 320px width, and drag resize handle",
             "dependencies": [],
             "details": "Create Sidebar.tsx component with useState for collapsed state, CSS transitions for smooth animations, resize handle with mouse event handlers for width adjustment, and proper z-index layering. Include sidebar toggle button and maintain state persistence in localStorage.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Test collapse/expand animations, verify resize handle drag functionality, test width constraints (min/max), validate state persistence across page reloads"
           },
           {
@@ -423,7 +423,7 @@
               "8.1"
             ],
             "details": "Install and configure @tanstack/react-virtual library. Create VirtualizedList component wrapper with dynamic item sizing, scroll restoration, and viewport optimization. Implement list item recycling for chains, documents, and agents sections with proper key management.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Performance test with 1000+ items, verify smooth scrolling, test memory usage optimization, validate item recycling behavior"
           },
           {
@@ -434,7 +434,7 @@
               "8.2"
             ],
             "details": "Create SidebarSection.tsx generic component and specific components: ChainsSection, DocumentsSection, AgentsSection. Each section includes collapsible header, search/filter input, item count display, and virtualized list integration. Add proper TypeScript interfaces for each object type.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test section collapse/expand, verify search functionality, validate item filtering, test empty states and loading indicators"
           },
           {
@@ -445,7 +445,7 @@
               "8.3"
             ],
             "details": "Implement HTML5 drag-and-drop API with custom drag preview images, drag ghost elements, and drop zone highlighting. Create drag data transfer with object metadata, integrate with existing Canvas component drop handlers, and add visual feedback during drag operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test drag initiation from sidebar items, verify drag preview rendering, test drop zone detection on canvas, validate data transfer accuracy"
           },
           {
@@ -456,7 +456,7 @@
               "8.4"
             ],
             "details": "Create SearchBar component with debounced input, implement fuzzy search using Fuse.js or similar, add filter options (by type, status, date), and rich item display with thumbnails, descriptions, and metadata badges. Include recent items and favorites functionality.\n<info added on 2025-08-08T08:23:47.478Z>\nThe comprehensive Zod schemas for the Left Sidebar Object Library system have been successfully created and are already implemented in the codebase:\n\n**Completed Schemas in `/Users/talchaimdamri/projects/chain of docs/COD_V01/schemas/api/sidebar.ts`:**\n\n1. **SidebarConfigSchema** - Complete sidebar configuration with layout, sections, theme, and global search\n2. **SidebarObjectItemSchema** - Base schema for all sidebar items (chains, documents, agents)\n3. **ChainMetadataSchema** - Rich metadata for chain objects with node counts, status, badges\n4. **DocumentMetadataSchema** - Rich metadata for document objects with type, size, version info\n5. **AgentMetadataSchema** - Rich metadata for agent objects with model, capabilities, performance metrics\n6. **SidebarSectionConfigSchema** - Individual section configuration with virtualization and search settings\n7. **SearchConfigSchema & FilterStateSchema** - Advanced search and filtering functionality\n8. **DragDropConfigSchema & DragDataSchema** - Complete drag-and-drop system with visual feedback\n9. **VirtualListConfigSchema** - Performance optimization for large datasets\n10. **SidebarStateSchema** - Complete state management for the entire sidebar system\n\n**Key Features Implemented:**\n- Integration with existing Canvas/node architecture through PositionSchema and NodeTypeSchema reuse\n- Event sourcing compatibility for undo/redo functionality\n- Comprehensive TypeScript type exports and factory functions\n- Advanced virtualization support for performance with large lists\n- Sophisticated drag-and-drop system with HTML5 API integration\n- Rich metadata display with thumbnails, badges, and status indicators\n- Search and filtering with debounced input and multi-field support\n\n**Documentation:**\n- Schemas properly documented in CHANGELOG.md as Version 1.5.0\n- All schemas exported through index.ts barrel exports\n- Factory functions and validation utilities included\n\nThe schemas follow all project patterns and are ready for implementation in the sidebar UI components.\n</info added on 2025-08-08T08:23:47.478Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test search performance and accuracy, verify filter combinations, test metadata display rendering, validate recent items and favorites persistence"
           }
         ]
@@ -471,8 +471,75 @@
         "dependencies": [
           6
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Inspector Panel Base Component with Slide Animation",
+            "description": "Build the foundational inspector panel component with slide-in/slide-out animations from the right side",
+            "dependencies": [],
+            "details": "Create InspectorPanel component with CSS transitions or Framer Motion for smooth slide animations. Implement panel state management (open/closed) and proper z-index layering. Add backdrop overlay with click-outside-to-close functionality. Ensure panel width is responsive and doesn't break on smaller screens.\n<info added on 2025-08-10T13:10:13.841Z>\nImplementation started with comprehensive TDD test suite in place. Tests located in tests/unit/components/inspector/ directory cover all expected InspectorPanel behaviors including slide animations, state management, backdrop overlay, and responsive design. Interface definitions and test data available in tests/fixtures/inspector.ts provide complete component specifications. Ready to implement React component following test-driven development to satisfy failing test assertions.\n</info added on 2025-08-10T13:10:13.841Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Set up React Hook Form Integration with Zod Validation",
+            "description": "Configure form management system with real-time validation for agent properties",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Install and configure React Hook Form with Zod resolver. Create AgentConfigSchema for form validation covering name, prompt, model, and tools properties. Set up form state management with proper error handling and validation messaging. Implement real-time validation feedback with debounced validation for better UX.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build Agent Property Display and Editing Interface",
+            "description": "Create form controls for agent name, prompt textarea, and basic property editing",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Implement form fields for agent name (text input with validation), prompt (expandable textarea with character count), and description field. Add proper labels, placeholders, and validation error displays. Implement auto-save functionality with visual feedback for unsaved changes. Add form reset and cancel capabilities.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Model Selection Dropdown Component",
+            "description": "Create dropdown interface for selecting AI models (GPT-4, Claude, etc.) with proper validation",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Build ModelSelector dropdown component with options for GPT-4, GPT-3.5, Claude Sonnet, Claude Haiku, etc. Include model descriptions and capability indicators. Add search/filter functionality for large model lists. Implement proper validation to ensure selected model is available and compatible.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create Tools Configuration Interface with Checklist",
+            "description": "Build tools selection interface allowing agents to be configured with available tools and capabilities",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Create ToolsConfiguration component with checkboxes for available tools (web search, file access, code execution, etc.). Include tool descriptions and permission levels. Add select-all/deselect-all functionality. Implement tool compatibility validation based on selected model. Add custom tool configuration for advanced users.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add Auto-Generate Prompt Feature and Responsive Design Optimization",
+            "description": "Implement AI-powered prompt generation button and ensure panel responsiveness across devices",
+            "dependencies": [
+              "9.3",
+              "9.4",
+              "9.5"
+            ],
+            "details": "Add auto-generate prompt button that creates optimized prompts based on agent role and selected tools. Implement responsive design for mobile and tablet viewports with collapsible sections. Add scrollable content areas with proper overflow handling. Include keyboard navigation support and accessibility features (ARIA labels, focus management).",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 10,
@@ -711,7 +778,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T03:13:56.307Z",
-      "updated": "2025-08-10T08:37:39.951Z",
+      "updated": "2025-08-10T13:12:19.431Z",
       "description": "Tasks for master context"
     }
   }
