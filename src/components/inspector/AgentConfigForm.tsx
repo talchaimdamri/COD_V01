@@ -5,7 +5,7 @@
  * Provides real-time validation with debounced feedback for better UX.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -81,6 +81,9 @@ export interface AgentConfigFormProps {
   onSubmit: (data: AgentFormData) => void | Promise<void>
   onChange?: (data: Partial<AgentFormData>) => void
   onReset?: () => void
+  onAutoSave?: (data: AgentFormData) => Promise<void>
+  autoSaveEnabled?: boolean
+  autoSaveInterval?: number // milliseconds, default 2000ms
 }
 
 export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
@@ -90,7 +93,17 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
   onSubmit,
   onChange,
   onReset,
+  onAutoSave,
+  autoSaveEnabled = true,
+  autoSaveInterval = 2000,
 }) => {
+  // Auto-save state management
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveDataRef = useRef<string>('')
+  
   // Initialize form with default values
   const defaultValues: AgentFormData = useMemo(() => ({
     name: agent?.name || '',
@@ -157,7 +170,82 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
     if (agent?.name && agent?.prompt && agent?.model) {
       trigger()
     }
+    // Reset auto-save state when agent changes
+    setAutoSaveStatus('idle')
+    setHasUnsavedChanges(false)
+    setLastSaved(null)
+    lastSaveDataRef.current = JSON.stringify(defaultValues)
   }, [agent, defaultValues, reset, trigger])
+
+  // Auto-save functionality
+  const performAutoSave = async (data: AgentFormData) => {
+    if (!onAutoSave || !autoSaveEnabled) return
+
+    const currentDataString = JSON.stringify(data)
+    
+    // Don't save if data hasn't changed
+    if (currentDataString === lastSaveDataRef.current) return
+    
+    // Don't save invalid data
+    const isValid = await trigger()
+    if (!isValid) return
+
+    try {
+      setAutoSaveStatus('saving')
+      await onAutoSave(data)
+      
+      setAutoSaveStatus('saved')
+      setLastSaved(new Date())
+      setHasUnsavedChanges(false)
+      lastSaveDataRef.current = currentDataString
+      
+      // Clear saved status after 3 seconds
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+      }, 3000)
+      
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+      setAutoSaveStatus('error')
+      
+      // Clear error status after 5 seconds
+      setTimeout(() => {
+        setAutoSaveStatus('idle')
+      }, 5000)
+    }
+  }
+
+  // Auto-save effect - triggers when form data changes
+  useEffect(() => {
+    if (!isDirty || !autoSaveEnabled) return
+
+    setHasUnsavedChanges(true)
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      performAutoSave(watchedValues)
+    }, autoSaveInterval)
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [watchedValues, isDirty, autoSaveEnabled, autoSaveInterval])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Handle form submission
   const handleFormSubmit = async (data: AgentFormData) => {
@@ -168,9 +256,29 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
     }
   }
 
-  // Handle form reset
+  // Handle form reset with unsaved changes warning
   const handleFormReset = () => {
+    // Check for unsaved changes and confirm if needed
+    if (hasUnsavedChanges && autoSaveEnabled) {
+      const confirmReset = window.confirm(
+        'You have unsaved changes. Are you sure you want to reset the form?'
+      )
+      if (!confirmReset) {
+        return
+      }
+    }
+
     reset(defaultValues)
+    setAutoSaveStatus('idle')
+    setHasUnsavedChanges(false)
+    setLastSaved(null)
+    lastSaveDataRef.current = JSON.stringify(defaultValues)
+    
+    // Clear any pending auto-save
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+    
     if (onReset) {
       onReset()
     }
@@ -202,16 +310,74 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
     </div>
   )
 
+  // Auto-save status component
+  const AutoSaveStatus: React.FC = () => {
+    if (!autoSaveEnabled) return null
+
+    const getStatusIcon = () => {
+      switch (autoSaveStatus) {
+        case 'saving':
+          return '⏳'
+        case 'saved':
+          return '✓'
+        case 'error':
+          return '⚠️'
+        default:
+          return hasUnsavedChanges ? '●' : '○'
+      }
+    }
+
+    const getStatusText = () => {
+      switch (autoSaveStatus) {
+        case 'saving':
+          return 'Saving...'
+        case 'saved':
+          return lastSaved ? `Saved at ${lastSaved.toLocaleTimeString()}` : 'Saved'
+        case 'error':
+          return 'Save failed'
+        default:
+          return hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved'
+      }
+    }
+
+    const getStatusClass = () => {
+      switch (autoSaveStatus) {
+        case 'saving':
+          return 'auto-save-saving'
+        case 'saved':
+          return 'auto-save-saved'
+        case 'error':
+          return 'auto-save-error'
+        default:
+          return hasUnsavedChanges ? 'auto-save-unsaved' : 'auto-save-clean'
+      }
+    }
+
+    return (
+      <div 
+        data-testid="auto-save-status"
+        className={`auto-save-status ${getStatusClass()}`}
+      >
+        <span className="auto-save-icon">{getStatusIcon()}</span>
+        <span className="auto-save-text">{getStatusText()}</span>
+      </div>
+    )
+  }
+
   return (
-    <form
-      data-testid="agent-config-form"
-      data-dirty={isDirty}
-      data-valid={isValid}
-      data-validating={isValidating}
-      className="agent-config-form"
-      onSubmit={handleSubmit(handleFormSubmit)}
-      onReset={handleFormReset}
-    >
+    <div className="agent-config-form-container">
+      <AutoSaveStatus />
+      <form
+        data-testid="agent-config-form"
+        data-dirty={isDirty}
+        data-valid={isValid}
+        data-validating={isValidating}
+        data-auto-save-status={autoSaveStatus}
+        data-has-unsaved-changes={hasUnsavedChanges}
+        className="agent-config-form"
+        onSubmit={handleSubmit(handleFormSubmit)}
+        onReset={handleFormReset}
+      >
       {/* Agent Name Field */}
       <div className="form-field">
         <label htmlFor="agent-name-input" className="form-label">
@@ -363,11 +529,59 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
         </button>
       </div>
     </form>
+    </div>
   )
 }
 
 // CSS styles (inline for now, can be moved to CSS file later)
 const styles = `
+.agent-config-form-container {
+  max-width: 100%;
+}
+
+.auto-save-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.auto-save-icon {
+  font-weight: bold;
+}
+
+.auto-save-text {
+  color: #6b7280;
+}
+
+.auto-save-saving {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.auto-save-saved {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.auto-save-error {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.auto-save-unsaved {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.auto-save-clean {
+  background-color: #f9fafb;
+  color: #6b7280;
+}
+
 .agent-config-form {
   max-width: 100%;
   padding: 16px;

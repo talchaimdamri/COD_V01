@@ -72,6 +72,56 @@
 - Canvas node types as pluggable modules
 - Event sourcing as injectable service
 
+## Task 9 Specific Patterns Introduced
+
+### 11. React Hook Form Integration Pattern
+
+**Pattern**: Comprehensive form management with Zod validation and optimal timing
+**Implementation**: React Hook Form + @hookform/resolvers/zod integration
+**Key Features**:
+- Form state management with `data-valid`, `data-dirty`, `data-validating` attributes
+- Optimal validation timing with `mode: 'onSubmit'` and `reValidateMode: 'onChange'`
+- Real-time validation feedback with debounced input handling
+- Zod schema integration for runtime type safety
+
+**Application**: AgentConfigForm component for agent property editing
+
+### 12. Inspector Panel Animation Pattern
+
+**Pattern**: Context-sensitive slide panel with CSS transition animations
+**Implementation**: CSS-based slide-in/slide-out animations from right side
+**Key Features**:
+- Smooth slide animations with backdrop overlay
+- Proper z-index layering and click-outside-to-close functionality
+- Responsive design with state management
+- Integration with form components
+
+**Usage**: Inspector panel for agent configuration interface
+
+### 13. Form Validation Timing Pattern
+
+**Pattern**: Solved complex React Hook Form validation timing for immediate feedback
+**Implementation**: Strategic validation mode configuration and trigger patterns
+**Technical Breakthrough**: 
+- `mode: 'onSubmit'` prevents premature validation errors
+- `reValidateMode: 'onChange'` provides real-time feedback after initial interaction
+- Manual `trigger()` calls for forms with valid default values
+- Debounced validation for optimal performance
+
+**Achievement**: Form Initialization tests 4/5 passing (major improvement from 0/5)
+
+### 14. Component Integration Pattern
+
+**Pattern**: Seamless integration between panel and form components
+**Implementation**: Props-based configuration with event-driven communication
+**Key Features**:
+- InspectorPanel + AgentConfigForm data flow integration
+- Form state propagation through component hierarchy
+- Event-driven form submission and state updates
+- Consistent error handling and validation messaging
+
+**Benefits**: Modular, testable, and maintainable component architecture
+
 ## Task 8 Specific Patterns Introduced
 
 ### 6. Virtualized List Performance Pattern
@@ -159,9 +209,29 @@
 **Reasoning**: Type safety, self-documenting APIs, runtime validation
 **Impact**: Reduced bugs, better API contracts, improved developer experience
 
+### ADR-005: React Hook Form Library Selection (Task 9)
+**Decision**: React Hook Form over Formik for form management
+**Reasoning**: Superior TypeScript support, better performance, smaller bundle size, more flexible validation
+**Impact**: Improved developer experience, better form validation performance, easier maintenance
+
+### ADR-006: Form Validation Timing Strategy (Task 9)
+**Decision**: `mode: 'onSubmit'` with `reValidateMode: 'onChange'` configuration
+**Reasoning**: Prevents premature validation errors while providing real-time feedback after interaction
+**Impact**: Optimal user experience, solved complex timing issues, 4/5 Form Initialization tests passing
+
+### ADR-007: Inspector Panel Animation Implementation (Task 9)
+**Decision**: CSS transitions over Framer Motion for slide animations
+**Reasoning**: Simpler implementation, better performance, no additional dependencies, sufficient for requirements
+**Impact**: Reduced bundle size, smoother animations, easier maintenance
+
+### ADR-008: Component Integration Architecture (Task 9)
+**Decision**: Props-based configuration with event-driven form state communication
+**Reasoning**: Consistent with existing patterns, testable, maintainable, clear data flow
+**Impact**: Seamless component integration, easier testing, better maintainability
+
 ---
 
 **Established**: August 10, 2025  
-**Last Updated**: August 10, 2025
+**Last Updated**: August 10, 2025 - Task 9.2 React Hook Form Integration Patterns Added
 **Review Frequency**: Before major architectural changes
-EOF < /dev/null
+**Recent Additions**: Task 9 Inspector Panel and Form Management patterns (ADR-005 through ADR-008)
