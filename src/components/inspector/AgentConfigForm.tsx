@@ -12,37 +12,8 @@ import { z } from 'zod'
 import { Agent } from '../../schemas/database/agent'
 import { CreateAgentRequestSchema } from '../../schemas/api/agents'
 
-// Types from test fixtures
-interface ModelOption {
-  id: string
-  name: string
-  provider: string
-  description: string
-  capabilities: string[]
-  maxTokens: number
-  costPer1k: number
-  isAvailable: boolean
-  recommendedFor: string[]
-  performance: {
-    speed: number // 1-5 scale
-    quality: number // 1-5 scale
-    reasoning: number // 1-5 scale
-  }
-}
-
-interface ToolOption {
-  id: string
-  name: string
-  description: string
-  category: string
-  icon: string
-  isEnabled: boolean
-  isRequired: boolean
-  permissions: string[]
-  config?: Record<string, any>
-  compatibleModels: string[]
-  performanceImpact: number // 1-5 scale
-}
+import { ModelOption, ToolOption } from '../../types/models'
+import { ModelSelector } from './ModelSelector'
 
 // Form data type based on Agent schema
 export interface AgentFormData {
@@ -429,30 +400,30 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 
       {/* Model Selection Field */}
       <div className="form-field">
-        <label htmlFor="agent-model-select" className="form-label">
+        <label className="form-label">
           AI Model *
         </label>
-        <select
-          {...register('model', {
-            onChange: () => trigger('model') // Immediate validation for model selection
-          })}
-          id="agent-model-select"
-          data-testid="agent-model-select"
-          data-valid={!errors.model && touchedFields.model ? 'true' : 'false'}
-          className="form-select"
-          aria-invalid={errors.model ? 'true' : 'false'}
-          aria-describedby={errors.model ? 'model-error' : undefined}
-        >
-          <option value="">Select a model...</option>
-          {availableModels
-            .filter(model => model.isAvailable)
-            .map(model => (
-              <option key={model.id} value={model.id}>
-                {model.name} - {model.provider}
-                {model.maxTokens && ` (${model.maxTokens.toLocaleString()} tokens)`}
-              </option>
-            ))}
-        </select>
+        <Controller
+          name="model"
+          control={control}
+          render={({ field: { value, onChange } }) => (
+            <ModelSelector
+              models={availableModels}
+              selectedModel={value}
+              availableTools={watchedValues.tools || []}
+              onChange={(modelId) => {
+                onChange(modelId)
+                trigger('model') // Trigger validation after model change
+              }}
+              onValidation={(isValid, errors) => {
+                // Additional validation logic can be added here if needed
+              }}
+              placeholder="Select an AI model..."
+              disabled={isSubmitting}
+              className={errors.model ? 'error' : ''}
+            />
+          )}
+        />
         <ValidationMessage 
           fieldName="model" 
           error={errors.model?.message}
