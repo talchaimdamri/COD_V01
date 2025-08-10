@@ -5,7 +5,7 @@
  * Provides real-time validation with debounced feedback for better UX.
  */
 
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -115,16 +115,29 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
       isDirty,
       isSubmitting,
       touchedFields,
+      isValidating,
     },
   } = useForm<AgentFormData>({
     resolver: zodResolver(AgentConfigSchema),
     defaultValues,
-    mode: 'onChange', // Validate on change for real-time feedback
+    mode: 'onSubmit', // Only validate on submit initially
+    reValidateMode: 'onChange', // Re-validate on subsequent changes
     criteriaMode: 'all', // Show all validation errors
+    shouldFocusError: true, // Focus on error fields
   })
 
   // Watch all form values for onChange callback
   const watchedValues = watch()
+
+  // Trigger validation when we have valid initial data
+  useEffect(() => {
+    // Check if we have complete valid initial data
+    const hasValidInitialData = agent?.name && agent?.prompt && agent?.model
+    if (hasValidInitialData) {
+      // Immediately trigger validation to update form state
+      trigger()
+    }
+  }, [agent, trigger])
 
   // Call onChange when form values change
   useEffect(() => {
@@ -140,9 +153,9 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
   // Reset form when agent prop changes
   useEffect(() => {
     reset(defaultValues)
-    // Trigger validation after reset if we have an agent with data
-    if (agent) {
-      setTimeout(() => trigger(), 100) // Small delay to ensure form is reset
+    // Trigger validation after reset if we have valid data
+    if (agent?.name && agent?.prompt && agent?.model) {
+      trigger()
     }
   }, [agent, defaultValues, reset, trigger])
 
@@ -194,6 +207,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
       data-testid="agent-config-form"
       data-dirty={isDirty}
       data-valid={isValid}
+      data-validating={isValidating}
       className="agent-config-form"
       onSubmit={handleSubmit(handleFormSubmit)}
       onReset={handleFormReset}
