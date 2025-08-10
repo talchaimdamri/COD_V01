@@ -130,12 +130,12 @@ export const VirtualizedSidebarList: React.FC<VirtualizedListProps> = ({
     }
   }
   
-  // Debug logging (development only)
-  if (process.env.NODE_ENV === 'development' || process.env.VITEST === 'true') {
+  // Debug logging (development only, not in tests)
+  if (process.env.NODE_ENV === 'development' && process.env.VITEST !== 'true') {
     console.log('VirtualizedSidebarList Debug:', {
       itemCount: items.length,
       virtualItemsCount: virtualItems.length,
-      scrollElement: scrollElementRef.current,
+      scrollElement: !!scrollElementRef.current,
       totalSize: virtualizer.getTotalSize(),
       firstVirtualItem: virtualItems[0],
       isFallback: virtualItems.length > 0 && !virtualizer.getVirtualItems().length,

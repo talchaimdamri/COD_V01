@@ -3,11 +3,11 @@ import { cleanup } from '@testing-library/react'
 import * as matchers from '@testing-library/jest-dom/matchers'
 
 // extends Vitest's expect method with methods from react-testing-library
-expected.extend(matchers)
+expect.extend(matchers)
 
-// Polyfill Array.isArray for JSDOM environment
+// Array.isArray polyfill (already available in modern environments, but keeping for safety)
 if (typeof Array.isArray !== 'function') {
-  global.Array.isArray = function(obj) {
+  Array.isArray = function(obj) {
     return Object.prototype.toString.call(obj) === '[object Array]'
   }
 }
@@ -17,35 +17,9 @@ class MockResizeObserver {
   observe = vi.fn()
   unobserve = vi.fn()
   disconnect = vi.fn()
-  constructor(callback: ResizeObserverCallback) {
-    // Immediately trigger callback with mock entries for initial setup
-    setTimeout(() => {
-      callback([
-        {
-          target: { 
-            clientHeight: 400, 
-            clientWidth: 300,
-            offsetHeight: 400,
-            offsetWidth: 300,
-            scrollHeight: 400,
-            scrollWidth: 300
-          } as Element,
-          contentRect: { 
-            height: 400, 
-            width: 300, 
-            top: 0, 
-            left: 0, 
-            bottom: 400, 
-            right: 300, 
-            x: 0, 
-            y: 0 
-          },
-          borderBoxSize: [{ blockSize: 400, inlineSize: 300 }],
-          contentBoxSize: [{ blockSize: 400, inlineSize: 300 }],
-          devicePixelContentBoxSize: [{ blockSize: 400, inlineSize: 300 }],
-        }
-      ] as ResizeObserverEntry[], this as ResizeObserver)
-    }, 0)
+  constructor(callback?: ResizeObserverCallback) {
+    // Don't trigger callback automatically to avoid issues with getAttribute
+    // Tests will handle resize behavior explicitly if needed
   }
 }
 
