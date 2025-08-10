@@ -16,6 +16,8 @@ import {
 } from '../../../schemas/api/sidebar'
 import { SidebarSection } from './SidebarSection'
 import { GlobalSearch } from './GlobalSearch'
+import { useSidebarEventSourcing } from '../../lib/sidebarEventSourcing'
+import { Position } from '../../../schemas/events/common'
 
 interface SidebarProps {
   config?: SidebarConfig
@@ -38,8 +40,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   className,
   children
 }) => {
-  // Component state
-  const [layout, setLayout] = useState<SidebarLayout>(initialLayout)
+  // Use event sourcing for state management
+  const {
+    sidebarLayout: layout,
+    sidebarState,
+    isLoading,
+    error,
+    canUndo,
+    canRedo,
+    updateLayout,
+    toggleCollapse,
+    resizeSidebar,
+    searchSection,
+    loadSectionData,
+    itemsLoading,
+    itemsError,
+  } = useSidebarEventSourcing(initialLayout)
+  
+  // Local UI state for smooth interactions
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [savedWidth, setSavedWidth] = useState(layout.width)
   
@@ -91,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   )
   
   // Update layout with validation and persistence
-  const updateLayout = useCallback((newLayout: SidebarLayout) => {
+  const updateLayoutLocal = useCallback(async (newLayout: SidebarLayout, trigger: 'user' | 'resize' | 'collapse' | 'auto' = 'user') => {
     // Validate width constraints
     const validatedLayout = {
       ...newLayout,
@@ -101,33 +119,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )
     }
     
-    setLayout(validatedLayout)
+    await updateLayout(validatedLayout, trigger)
     saveToStorage(validatedLayout)
     onLayoutChange?.(validatedLayout)
-  }, [onLayoutChange, saveToStorage])
+  }, [updateLayout, onLayoutChange, saveToStorage])
   
   // Toggle collapse/expand
-  const toggleCollapse = useCallback(() => {
+  const toggleCollapseLocal = useCallback(async () => {
     setIsTransitioning(true)
-    
-    const newLayout = {
-      ...layout,
-      isCollapsed: !layout.isCollapsed,
-      width: layout.isCollapsed ? savedWidth : layout.collapsedWidth
-    }
     
     if (!layout.isCollapsed) {
       // Collapsing - save current width
       setSavedWidth(layout.width)
     }
     
-    updateLayout(newLayout)
+    await toggleCollapse('toggle')
     
     // Clear transition class after animation
     setTimeout(() => {
       setIsTransitioning(false)
     }, TRANSITION_DURATION)
-  }, [layout, savedWidth, updateLayout])
+  }, [layout, toggleCollapse])
   
   // Mouse down handler for resize
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -137,11 +149,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     startX.current = e.clientX
     startWidth.current = layout.width
     
-    updateLayout({ ...layout, isResizing: true })
+    updateLayoutLocal({ ...layout, isResizing: true }, 'resize')
     
     // Add global cursor style
     document.body.style.cursor = 'col-resize'
-  }, [layout, updateLayout])
+  }, [layout, updateLayoutLocal])
   
   // Throttled mouse move handler
   const handleMouseMove = useCallback(
@@ -151,13 +163,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const deltaX = e.clientX - startX.current
       const newWidth = startWidth.current + deltaX
       
-      updateLayout({
+      updateLayoutLocal({
         ...layout,
         width: newWidth,
         isResizing: true
-      })
+      }, 'resize')
     }, RESIZE_THROTTLE),
-    [layout, updateLayout]
+    [layout, updateLayoutLocal]
   )
   
   // Mouse up handler
@@ -167,11 +179,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isResizing.current = false
     document.body.style.cursor = ''
     
-    updateLayout({
+    // Use resizeSidebar for the final resize event
+    const startPos: Position = { x: startX.current, y: 0 }
+    const endPos: Position = { x: startX.current + (layout.width - startWidth.current), y: 0 }
+    resizeSidebar(startWidth.current, layout.width, startPos, endPos, 'drag')
+    
+    updateLayoutLocal({
       ...layout,
       isResizing: false
-    })
-  }, [layout, updateLayout])
+    }, 'resize')
+  }, [layout, updateLayoutLocal, resizeSidebar])
   
   // Setup and cleanup global mouse events
   useEffect(() => {
@@ -190,9 +207,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault()
-      toggleCollapse()
+      toggleCollapseLocal()
     }
-  }, [toggleCollapse])
+  }, [toggleCollapseLocal])
   
   // Compute dynamic classes
   const sidebarClasses = cn(
@@ -242,7 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           'transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50',
           'text-muted-foreground hover:text-foreground'
         )}
-        onClick={toggleCollapse}
+        onClick={toggleCollapseLocal}
         onKeyDown={handleKeyDown}
         aria-expanded={!layout.isCollapsed}
         aria-label={`${layout.isCollapsed ? 'Expand' : 'Collapse'} sidebar`}
@@ -279,11 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <GlobalSearch 
               config={config.globalSearch}
               onSearch={(term) => {
-                onStateChange?.({ 
-                  sections: {
-                    // Update all sections with global search term
-                  }
-                })
+                searchSection(term, undefined, 'global')
               }}
             />
           </div>
@@ -299,6 +312,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={sectionConfig.id}
                 config={sectionConfig}
                 isCollapsed={layout.isCollapsed}
+                sectionState={sidebarState.sections[sectionConfig.id]}
+                isLoading={itemsLoading[sectionConfig.id] || false}
+                error={itemsError[sectionConfig.id] || null}
+                onSearch={(term) => searchSection(term, sectionConfig.id, 'local')}
+                onLoadData={() => loadSectionData(sectionConfig.id)}
                 onStateChange={(sectionState) => {
                   onStateChange?.({
                     sections: {

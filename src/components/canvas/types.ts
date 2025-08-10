@@ -77,6 +77,14 @@ export interface CanvasState {
   }
 }
 
+export interface DroppedItem {
+  id: string
+  type: 'chain' | 'document' | 'agent'
+  title: string
+  description?: string
+  metadata?: Record<string, any>
+}
+
 export interface CanvasProps {
   className?: string
   onNodeCreate?: (type: 'document' | 'agent', position: Position) => void
@@ -87,6 +95,7 @@ export interface CanvasProps {
   onEdgeDelete?: (edgeId: string) => void
   onViewChange?: (viewBox: ViewBox, scale: number) => void
   onGridToggle?: (showGrid: boolean) => void
+  onItemDrop?: (item: DroppedItem, position: Position) => void
 }
 
 export interface CanvasGridProps {

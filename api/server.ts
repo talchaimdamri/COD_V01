@@ -340,6 +340,10 @@ async function registerRoutes(app: FastifyInstance) {
     const versionsRoutes = await import('./routes/versions')
     await fastify.register(versionsRoutes.default)
 
+    // Register Sidebar API routes
+    const sidebarRoutes = await import('./routes/sidebar')
+    await fastify.register(sidebarRoutes.default)
+
     // Documents routes placeholder
     fastify.all('/documents*', async (request, reply) => {
       const error = ErrorResponseSchema.parse({

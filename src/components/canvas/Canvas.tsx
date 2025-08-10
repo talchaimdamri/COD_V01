@@ -13,6 +13,7 @@ import {
 import { useCanvasEventSourcing } from '../../lib/eventSourcing'
 import { CanvasEventUtils, CANVAS_LIMITS, ViewBox, ConnectionPoint, EdgeType } from '../../../schemas/events/canvas'
 import { EdgeCreationState, NodeAnchor, EdgeProps } from '../../../schemas/api/edges'
+import { useCanvasPerformance } from '../../lib/canvasPerformance'
 
 const Canvas: React.FC<CanvasProps> = ({
   className = '',
@@ -24,6 +25,7 @@ const Canvas: React.FC<CanvasProps> = ({
   onEdgeDelete,
   onViewChange,
   onGridToggle,
+  onItemDrop,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null)
   
@@ -46,6 +48,28 @@ const Canvas: React.FC<CanvasProps> = ({
     redo,
   } = useCanvasEventSourcing()
 
+  // Performance optimization hook
+  const {
+    startRenderMeasurement,
+    endRenderMeasurement,
+    updateElementCounts,
+    performViewportCulling,
+    batchUpdate,
+    handleSidebarResize,
+    shouldSkipFrame,
+    shouldSimplifyRender,
+    getVirtualizationLevel,
+    isPerformant,
+    needsOptimization,
+    optimizations,
+    metrics,
+  } = useCanvasPerformance({
+    enableCulling: true,
+    enableVirtualization: true,
+    enableMetrics: process.env.NODE_ENV === 'development',
+    logPerformance: process.env.NODE_ENV === 'development',
+  })
+
   // Local UI state for smooth interactions
   const [lastMousePosition, setLastMousePosition] = useState<Position | null>(null)
   const [localDragState, setLocalDragState] = useState({
@@ -64,6 +88,10 @@ const Canvas: React.FC<CanvasProps> = ({
   // Local state for temporary pan mode (space bar)
   const [isSpacePanning, setIsSpacePanning] = useState(false)
   const [spaceKeyDown, setSpaceKeyDown] = useState(false)
+  
+  // Drag and drop state
+  const [dragOverPosition, setDragOverPosition] = useState<Position | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
   
   // Local edge creation state for smooth interactions
   const [localEdgeCreationState, setLocalEdgeCreationState] = useState<EdgeCreationState>({
@@ -261,6 +289,32 @@ const Canvas: React.FC<CanvasProps> = ({
       anchors: generateNodeAnchors(node),
     }))
   }, [canvasState.nodes, generateNodeAnchors])
+
+  // Viewport culling for performance
+  const { visibleNodes, visibleEdges } = useMemo(() => {
+    if (!optimizations.cullingEnabled || shouldSkipFrame()) {
+      return {
+        visibleNodes: new Set(canvasState.nodes.map(n => n.id)),
+        visibleEdges: new Set(canvasState.edges.map(e => e.id))
+      }
+    }
+
+    return performViewportCulling(
+      displayViewBox,
+      canvasState.nodes,
+      canvasState.edges,
+      CANVAS_CONFIG.NODE_RADIUS
+    )
+  }, [canvasState.nodes, canvasState.edges, displayViewBox, optimizations.cullingEnabled, shouldSkipFrame, performViewportCulling])
+
+  // Update performance metrics
+  useEffect(() => {
+    updateElementCounts(
+      canvasState.nodes.length,
+      canvasState.edges.length,
+      visibleNodes.size
+    )
+  }, [canvasState.nodes.length, canvasState.edges.length, visibleNodes.size, updateElementCounts])
 
   // Convert screen coordinates to SVG coordinates
   const screenToSVG = useCallback((screenX: number, screenY: number): Position => {
@@ -978,6 +1032,80 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [localDragState, isPanning, lastMousePosition, touchState, canvasState.viewBox, canvasState.scale, screenToSVG, constrainViewBox, panCanvas, zoomCanvas, onViewChange])
 
+  // Handle drag and drop events
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
+    const clientPosition = { x: event.clientX, y: event.clientY }
+    const svgPosition = screenToSVG(clientPosition.x, clientPosition.y)
+    
+    setDragOverPosition(svgPosition)
+    setIsDragOver(true)
+  }, [screenToSVG])
+  
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    // Only clear drag over state if we're actually leaving the canvas
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
+    const isLeavingCanvas = (
+      event.clientX < rect.left ||
+      event.clientX > rect.right ||
+      event.clientY < rect.top ||
+      event.clientY > rect.bottom
+    )
+    
+    if (isLeavingCanvas) {
+      setIsDragOver(false)
+      setDragOverPosition(null)
+    }
+  }, [])
+  
+  const handleDrop = useCallback(async (event: React.DragEvent) => {
+    event.preventDefault()
+    
+    try {
+      const dragDataStr = event.dataTransfer.getData('application/json')
+      if (!dragDataStr) return
+      
+      const dragData = JSON.parse(dragDataStr)
+      const dropPosition = screenToSVG(event.clientX, event.clientY)
+      
+      // Call the onItemDrop callback if provided
+      onItemDrop?.(dragData, dropPosition)
+      
+      // Handle different item types
+      if (dragData.type === 'document' || dragData.type === 'agent') {
+        // Create a new node based on the dropped item
+        try {
+          const nodeType = dragData.type as 'document' | 'agent'
+          await addNode(nodeType, dropPosition, dragData.title)
+          onNodeCreate?.(nodeType, dropPosition)
+        } catch (error) {
+          console.error('Failed to create node from dropped item:', error)
+        }
+      } else if (dragData.type === 'chain') {
+        // For chains, we could expand them into multiple nodes
+        // For now, just create a single document node as a placeholder
+        try {
+          await addNode('document', dropPosition, `${dragData.title} (Chain)`)
+          onNodeCreate?.('document', dropPosition)
+        } catch (error) {
+          console.error('Failed to create node from dropped chain:', error)
+        }
+      }
+      
+    } catch (error) {
+      console.error('Failed to handle drop:', error)
+    } finally {
+      setIsDragOver(false)
+      setDragOverPosition(null)
+    }
+  }, [screenToSVG, onItemDrop, addNode, onNodeCreate])
+
   // Handle touch end events
   const handleTouchEnd = useCallback(async (event: React.TouchEvent) => {
     event.preventDefault()
@@ -1033,6 +1161,14 @@ const Canvas: React.FC<CanvasProps> = ({
   const displayViewBox = optimisticViewBox || canvasState.viewBox
   const displayScale = optimisticScale || canvasState.scale
   const viewBoxString = `${displayViewBox.x} ${displayViewBox.y} ${displayViewBox.width} ${displayViewBox.height}`
+
+  // Performance measurement for render cycle
+  useEffect(() => {
+    startRenderMeasurement()
+    return () => {
+      endRenderMeasurement()
+    }
+  })
   
   // Don't clear optimistic state too aggressively - only when event sourcing catches up
   useEffect(() => {
@@ -1091,6 +1227,21 @@ const Canvas: React.FC<CanvasProps> = ({
           Error: {error}
         </div>
       )}
+
+      {/* Performance indicators (development only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute bottom-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded z-10 font-mono">
+          <div>FPS: {metrics.frameRate.toFixed(1)} | Render: {metrics.renderTime.toFixed(1)}ms</div>
+          <div>Nodes: {visibleNodes.size}/{canvasState.nodes.length}</div>
+          <div>Edges: {visibleEdges.size}/{canvasState.edges.length}</div>
+          {needsOptimization && (
+            <div className="text-yellow-300">⚠ Performance degraded</div>
+          )}
+          {shouldSimplifyRender() && (
+            <div className="text-blue-300">🚀 Simplified rendering</div>
+          )}
+        </div>
+      )}
       
       {/* Undo/Redo indicators */}
       {(canUndo || canRedo) && (
@@ -1125,6 +1276,9 @@ const Canvas: React.FC<CanvasProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{
           touchAction: 'none', // Prevent browser touch behaviors
           cursor: isPanning || isSpacePanning || localDragState.isDragging ? 'grabbing' : 'grab'
@@ -1165,8 +1319,44 @@ const Canvas: React.FC<CanvasProps> = ({
           visible={canvasState.showGrid} 
         />
         
+        {/* Drop Zone Indicator */}
+        {isDragOver && dragOverPosition && (
+          <g className="drop-zone-indicator">
+            <circle
+              cx={dragOverPosition.x}
+              cy={dragOverPosition.y}
+              r={40}
+              fill="rgba(59, 130, 246, 0.1)"
+              stroke="rgba(59, 130, 246, 0.5)"
+              strokeWidth={2}
+              strokeDasharray="5,5"
+              className="animate-pulse"
+            />
+            <circle
+              cx={dragOverPosition.x}
+              cy={dragOverPosition.y}
+              r={20}
+              fill="rgba(59, 130, 246, 0.2)"
+              stroke="none"
+            />
+            <text
+              x={dragOverPosition.x}
+              y={dragOverPosition.y + 5}
+              textAnchor="middle"
+              fontSize={12}
+              fill="rgb(59, 130, 246)"
+              fontWeight="500"
+              pointerEvents="none"
+            >
+              Drop here
+            </text>
+          </g>
+        )}
+        
         {/* Edges Layer - render beneath nodes */}
-        {canvasState.edges.map((edge) => {
+        {canvasState.edges
+          .filter(edge => visibleEdges.has(edge.id))
+          .map((edge) => {
           const edgeProps: EdgeProps = {
             id: edge.id,
             source: edge.source,
@@ -1266,7 +1456,9 @@ const Canvas: React.FC<CanvasProps> = ({
         />
         
         {/* Nodes Layer - render above edges */}
-        {canvasState.nodes.map((node) => {
+        {canvasState.nodes
+          .filter(node => visibleNodes.has(node.id))
+          .map((node) => {
           // Handle local drag preview
           const isDraggedNode = localDragState.isDragging && localDragState.nodeId === node.id
           const displayPosition = isDraggedNode && localDragState.currentPosition 
