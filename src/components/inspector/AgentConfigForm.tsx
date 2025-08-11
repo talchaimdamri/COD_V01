@@ -5,7 +5,7 @@
  * Provides real-time validation with debounced feedback for better UX.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +14,7 @@ import { CreateAgentRequestSchema } from '../../schemas/api/agents'
 
 import { ModelOption, ToolOption } from '../../types/models'
 import { ModelSelector } from './ModelSelector'
+import { ToolsConfiguration } from './ToolsConfiguration'
 
 // Form data type based on Agent schema
 export interface AgentFormData {
@@ -55,6 +56,8 @@ export interface AgentConfigFormProps {
   onAutoSave?: (data: AgentFormData) => Promise<void>
   autoSaveEnabled?: boolean
   autoSaveInterval?: number // milliseconds, default 2000ms
+  onToolConfigChange?: (toolId: string, config: Record<string, any>) => void
+  showAdvancedToolConfig?: boolean
 }
 
 export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
@@ -67,6 +70,8 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
   onAutoSave,
   autoSaveEnabled = true,
   autoSaveInterval = 2000,
+  onToolConfigChange,
+  showAdvancedToolConfig = false,
 }) => {
   // Auto-save state management
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -74,6 +79,9 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveDataRef = useRef<string>('')
+  
+  // Tools validation state
+  const [toolsValidation, setToolsValidation] = useState<{ isValid: boolean; errors?: string[] }>({ isValid: true })
   
   // Initialize form with default values
   const defaultValues: AgentFormData = useMemo(() => ({
@@ -255,6 +263,18 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
     }
   }
 
+  // Handle tools validation callback
+  const handleToolsValidation = useCallback((isValid: boolean, errors?: string[]) => {
+    setToolsValidation({ isValid, errors })
+  }, [])
+
+  // Handle tool configuration changes
+  const handleToolConfigChange = useCallback((toolId: string, config: Record<string, any>) => {
+    if (onToolConfigChange) {
+      onToolConfigChange(toolId, config)
+    }
+  }, [onToolConfigChange])
+
   // Get compatible tools for selected model
   const compatibleTools = useMemo(() => {
     const selectedModel = watchedValues.model
@@ -431,53 +451,34 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
         />
       </div>
 
-      {/* Tools Configuration Fieldset */}
-      <fieldset data-testid="agent-tools-fieldset" className="form-fieldset">
-        <legend className="form-legend">Available Tools</legend>
-        <div className="tools-grid">
-          {compatibleTools.map(tool => (
-            <label
-              key={tool.id}
-              className={`tool-option ${tool.isRequired ? 'tool-required' : ''}`}
-            >
-              <Controller
-                name="tools"
-                control={control}
-                render={({ field: { value, onChange } }) => (
-                  <input
-                    type="checkbox"
-                    data-testid={`tool-checkbox-${tool.id}`}
-                    data-valid={!errors.tools ? 'true' : 'false'}
-                    checked={value.includes(tool.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        onChange([...value, tool.id])
-                      } else if (!tool.isRequired) {
-                        onChange(value.filter(id => id !== tool.id))
-                      }
-                      // Trigger tools validation after change
-                      setTimeout(() => trigger('tools'), 0)
-                    }}
-                    disabled={tool.isRequired}
-                    className="tool-checkbox"
-                  />
-                )}
-              />
-              <div className="tool-info">
-                <div className="tool-name">{tool.name}</div>
-                <div className="tool-description">{tool.description}</div>
-                {tool.isRequired && (
-                  <div className="tool-required-badge">Required</div>
-                )}
-              </div>
-            </label>
-          ))}
-        </div>
+      {/* Enhanced Tools Configuration */}
+      <div className="form-field">
+        <Controller
+          name="tools"
+          control={control}
+          render={({ field: { value, onChange } }) => (
+            <ToolsConfiguration
+              tools={availableTools}
+              selectedTools={value}
+              selectedModel={watchedValues.model}
+              onChange={(selectedTools) => {
+                onChange(selectedTools)
+                // Trigger tools validation after change
+                setTimeout(() => trigger('tools'), 0)
+              }}
+              onValidation={handleToolsValidation}
+              onConfigChange={handleToolConfigChange}
+              disabled={isSubmitting}
+              showAdvancedConfig={showAdvancedToolConfig}
+              className={errors.tools ? 'error' : ''}
+            />
+          )}
+        />
         <ValidationMessage 
           fieldName="tools" 
-          error={errors.tools?.message}
+          error={errors.tools?.message || toolsValidation.errors?.join(', ')}
         />
-      </fieldset>
+      </div>
 
       {/* Form Actions */}
       <div className="form-actions">
@@ -620,55 +621,6 @@ const styles = `
   color: #374151;
 }
 
-.tools-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.tool-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.tool-option:hover {
-  background-color: #f9fafb;
-}
-
-.tool-checkbox {
-  margin-top: 2px;
-}
-
-.tool-info {
-  flex: 1;
-}
-
-.tool-name {
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 2px;
-}
-
-.tool-description {
-  font-size: 12px;
-  color: #6b7280;
-  line-height: 1.4;
-}
-
-.tool-required-badge {
-  display: inline-block;
-  background-color: #fef3c7;
-  color: #d97706;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 12px;
-  margin-top: 4px;
-}
 
 .validation-message {
   font-size: 12px;
